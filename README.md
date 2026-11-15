@@ -29,6 +29,28 @@ Reprodução completa, **100% Open-Source e Auto-Hospedada** de uma plataforma i
 
 ---
 
+## 🎬 Exemplos Reais Gerados pela Plataforma (`examples/`)
+
+Este repositório inclui dois pacotes completos de detonação reais (100% sanitizados para exibição pública) em [`examples/`](examples/):
+
+### 1. [`examples/01_cobalt_beacon_simulator_py/`](examples/01_cobalt_beacon_simulator_py/) — Veredito: `MALICIOUS (70/100)`
+![Screenshot Detonação Cobalt Beacon](examples/01_cobalt_beacon_simulator_py/session_keyframe.png)
+- 🎥 **Vídeo da Sessão Gravada (`MP4 H.264`)**: [`session_recording.mp4`](examples/01_cobalt_beacon_simulator_py/session_recording.mp4)
+- 📄 **Relatório Executivo em PDF**: [`forensic_report.pdf`](examples/01_cobalt_beacon_simulator_py/forensic_report.pdf)
+- 🤖 **Relatório Forense Gerado pela IA (`qwen3-hermes`)**: [`report.md`](examples/01_cobalt_beacon_simulator_py/report.md)
+- 📦 **Bundle Completo de Evidências REA**: [`report.json`](examples/01_cobalt_beacon_simulator_py/report.json)
+- 🔍 **Rastreamento de Syscalls (`strace`)**: [`strace_audit.log`](examples/01_cobalt_beacon_simulator_py/strace_audit.log)
+
+### 2. [`examples/02_suspicious_installer_dropper_sh/`](examples/02_suspicious_installer_dropper_sh/) — Dropper Shell Installer
+![Screenshot Detonação Dropper](examples/02_suspicious_installer_dropper_sh/session_keyframe.png)
+- 🎥 **Vídeo da Sessão Gravada (`MP4 H.264`)**: [`session_recording.mp4`](examples/02_suspicious_installer_dropper_sh/session_recording.mp4)
+- 📄 **Relatório Executivo em PDF**: [`forensic_report.pdf`](examples/02_suspicious_installer_dropper_sh/forensic_report.pdf)
+- 🤖 **Relatório Forense Gerado pela IA (`qwen3-hermes`)**: [`report.md`](examples/02_suspicious_installer_dropper_sh/report.md)
+- 📦 **Bundle Completo de Evidências REA**: [`report.json`](examples/02_suspicious_installer_dropper_sh/report.json)
+- 🔍 **Rastreamento de Syscalls (`strace`)**: [`strace_audit.log`](examples/02_suspicious_installer_dropper_sh/strace_audit.log)
+
+---
+
 ## 🚀 Instalação Rápida
 
 ```bash

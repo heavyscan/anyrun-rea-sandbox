@@ -23,6 +23,33 @@ from collections import Counter
 REA_BIN = os.environ.get("REA_BIN", "/usr/local/bin/rea")
 
 
+def sanitize_public_text(text):
+    """
+    Removes or anonymizes any local server identifiers (username, hostname, local paths, LAN IPs)
+    so generated logs, videos, JSON bundles, Markdown, and PDF reports are 100% safe for public sharing.
+    """
+    if not text:
+        return text
+    s = str(text)
+    s = re.sub(r"/home/eduheavy/anyrun-rea/data/submissions/", "/sandbox/submissions/", s)
+    s = re.sub(r"/home/eduheavy/anyrun-rea", "/opt/anyrun-rea", s)
+    s = re.sub(r"/home/eduheavy", "/home/sandbox-analyst", s)
+    s = re.sub(r"\beduheavy\b", "sandbox-operator", s, flags=re.I)
+    s = re.sub(r"\bheavyscan\b", "anyrun-sandbox-node01", s, flags=re.I)
+    s = re.sub(r"\b192\.168\.1\.[0-9]{1,3}\b", "10.240.0.10", s)
+    return s
+
+
+def sanitize_obj(obj):
+    if isinstance(obj, str):
+        return sanitize_public_text(obj)
+    elif isinstance(obj, list):
+        return [sanitize_obj(x) for x in obj]
+    elif isinstance(obj, dict):
+        return {k: sanitize_obj(v) for k, v in obj.items()}
+    return obj
+
+
 def now_iso():
     import datetime
     return datetime.datetime.now(datetime.timezone.utc).astimezone().isoformat(timespec="seconds")
@@ -369,7 +396,8 @@ docker exec kali-sandbox rm -f /tmp/"{fname}" >/dev/null 2>&1 || true
             f.write(f"""
 echo " -> Instrumenting Linux ELF binary with strace behavioral tracing..."
 chmod +x "{file_path}" 2>/dev/null || true
-timeout 4s strace -f -e trace=execve,openat,connect,socket,unlink,write -o "{strace_log_path}" "{file_path}" 2>&1 | head -n 20 || true
+timeout 4s strace -f -e trace=execve,openat,connect,socket,unlink,write -o "{strace_log_path}" "{file_path}" 2>&1 | sed -E 's#/home/eduheavy[^ "]*#/sandbox/target#g; s/eduheavy/sandbox-operator/g; s/heavyscan/anyrun-sandbox-node01/g' | head -n 20 || true
+sed -i -E 's#/home/eduheavy[^ "]*#/sandbox/target#g; s/eduheavy/sandbox-operator/g; s/heavyscan/anyrun-sandbox-node01/g' "{strace_log_path}" 2>/dev/null || true
 echo " -> Captured Syscalls Summary:"
 head -n 18 "{strace_log_path}" 2>/dev/null || true
 """)
@@ -377,7 +405,8 @@ head -n 18 "{strace_log_path}" 2>/dev/null || true
             interp = "python3" if ext == ".py" else ("node" if ext == ".js" else "bash")
             f.write(f"""
 echo " -> Detonating script under strace + {interp} sandbox..."
-timeout 4s strace -f -e trace=execve,openat,connect,socket -o "{strace_log_path}" {interp} "{file_path}" 2>&1 | head -n 20 || true
+timeout 4s strace -f -e trace=execve,openat,connect,socket -o "{strace_log_path}" {interp} "{file_path}" 2>&1 | sed -E 's#/home/eduheavy[^ "]*#/sandbox/target#g; s/eduheavy/sandbox-operator/g; s/heavyscan/anyrun-sandbox-node01/g' | head -n 20 || true
+sed -i -E 's#/home/eduheavy[^ "]*#/sandbox/target#g; s/eduheavy/sandbox-operator/g; s/heavyscan/anyrun-sandbox-node01/g' "{strace_log_path}" 2>/dev/null || true
 echo " -> Captured Syscalls Summary:"
 head -n 18 "{strace_log_path}" 2>/dev/null || true
 """)
@@ -830,7 +859,7 @@ def run_complete_submission(task_id, file_path, filename, work_dir, ai_config, s
     update("Calculando Threat Score e mapeando táticas MITRE ATT&CK...", 82)
     scoring = compute_threat_score_and_mitre(hashes, file_meta, iocs, rea_static, dynamic_res)
 
-    full_telemetry = {
+    full_telemetry = sanitize_obj({
         "task_id": task_id,
         "started_at": started_at,
         "completed_at": now_iso(),
@@ -840,10 +869,10 @@ def run_complete_submission(task_id, file_path, filename, work_dir, ai_config, s
         "rea_static": rea_static,
         "dynamic": dynamic_res,
         "scoring": scoring,
-    }
+    })
 
     update(f"Gerando Relatório Forense via IA ({ai_config.get('provider')}: {ai_config.get('model')})...", 90)
-    ai_report = generate_ai_report(full_telemetry, ai_config)
+    ai_report = sanitize_obj(generate_ai_report(full_telemetry, ai_config))
     full_telemetry["ai_report"] = ai_report
     full_telemetry["completed_at"] = now_iso()
 

@@ -1,0 +1,145 @@
+{
+  "task_id": "task-20261115-022103-a8ea3a",
+  "started_at": "2026-11-15T02:21:04-03:00",
+  "completed_at": "2026-11-15T02:22:34-03:00",
+  "hashes": {
+    "size_bytes": 667,
+    "md5": "5d3a621366da460179706712602dd879",
+    "sha1": "5e0cb39cd131f5fad52d1fa440497b9b269054d0",
+    "sha256": "6af86b7c66707dd82d489994b231a7f0328d57d234f75506574d8768c706bbd8",
+    "entropy": 5.4185,
+    "packed_or_encrypted_suspect": false
+  },
+  "file_meta": {
+    "filename": "cobalt_beacon_simulator.py",
+    "extension": ".py",
+    "magic_description": "Python script, ASCII text executable",
+    "mime_type": "text/x-script.python",
+    "target_os": "Linux / POSIX Scripting",
+    "artifact_family": "Executable Script",
+    "rea_workflow": "capture-process"
+  },
+  "iocs": {
+    "urls": [
+      "http://198.51.100.200:8443/stage2/beacon.bin"
+    ],
+    "ips": [
+      "198.51.100.200"
+    ],
+    "registry_keys": [
+      "HKCU\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run\\\\Updater"
+    ],
+    "suspicious_capabilities": [
+      "/etc/passwd"
+    ],
+    "notable_strings": [
+      "import os, sys, time, socket, hashlib",
+      "C2_URL = \"http://198.51.100.200:8443/stage2/beacon.bin\"",
+      "print(\"[*] Checking /etc/passwd and local environment variables...\")"
+    ]
+  },
+  "rea_static": {
+    "rea_version": "6.7.0",
+    "executed_tools": [],
+    "evidence_records": [],
+    "rizin_analysis": {},
+    "go_metadata": null,
+    "rust_metadata": null,
+    "pe_resources": null,
+    "elf_layout": null,
+    "js_graph_summary": null,
+    "sqlite_schema": null,
+    "apk_manifest": null,
+    "archive_inventory": null
+  },
+  "dynamic": {
+    "video_recorded": true,
+    "video_filename": "session_recording.mp4",
+    "video_size_bytes": 1204912,
+    "screenshot_filename": "session_keyframe.png",
+    "rea_process_capture": {
+      "evidence_id": null,
+      "exit": null
+    },
+    "syscalls_observed": [
+      "28383 execve(\"/usr/bin/python3\", [\"python3\", \"/sandbox/target\"...], 0x7ffe35555c30 /* 26 vars */) = 0",
+      "28383 openat(AT_FDCWD, \"/etc/ld.so.cache\", O_RDONLY|O_CLOEXEC) = 3",
+      "28383 openat(AT_FDCWD, \"/usr/lib/x86_64-linux-gnu/libm.so.6\", O_RDONLY|O_CLOEXEC) = 3",
+      "28383 openat(AT_FDCWD, \"/usr/lib/x86_64-linux-gnu/libz.so.1\", O_RDONLY|O_CLOEXEC) = 3",
+      "28383 openat(AT_FDCWD, \"/usr/lib/x86_64-linux-gnu/libexpat.so.1\", O_RDONLY|O_CLOEXEC) = 3",
+      "28383 openat(AT_FDCWD, \"/usr/lib/x86_64-linux-gnu/libc.so.6\", O_RDONLY|O_CLOEXEC) = 3",
+      "28383 openat(AT_FDCWD, \"/usr/lib/locale/locale-archive\", O_RDONLY|O_CLOEXEC) = 3",
+      "28383 openat(AT_FDCWD, \"/usr/lib/x86_64-linux-gnu/gconv/gconv-modules.cache\", O_RDONLY|O_CLOEXEC) = 3",
+      "28383 openat(AT_FDCWD, \"/proc/self/maps\", O_RDONLY|O_CLOEXEC) = 3",
+      "28383 openat(AT_FDCWD, \"/usr/pyvenv.cfg\", O_RDONLY) = -1 ENOENT (No such file or directory)",
+      "28383 openat(AT_FDCWD, \"/usr/bin/pyvenv.cfg\", O_RDONLY) = -1 ENOENT (No such file or directory)",
+      "28383 openat(AT_FDCWD, \"/usr/bin/python3._pth\", O_RDONLY) = -1 ENOENT (No such file or directory)",
+      "28383 openat(AT_FDCWD, \"/usr/bin/python3.14._pth\", O_RDONLY) = -1 ENOENT (No such file or directory)",
+      "28383 openat(AT_FDCWD, \"/usr/bin/pybuilddir.txt\", O_RDONLY) = -1 ENOENT (No such file or directory)",
+      "28383 openat(AT_FDCWD, \"/etc/localtime\", O_RDONLY|O_CLOEXEC) = 3",
+      "28383 openat(AT_FDCWD, \"/usr/lib/python3.14\", O_RDONLY|O_NONBLOCK|O_CLOEXEC|O_DIRECTORY) = 3",
+      "28383 openat(AT_FDCWD, \"/usr/lib/python3.14/encodings/__pycache__/__init__.cpython-314.pyc\", O_RDONLY|O_CLOEXEC) = 3",
+      "28383 openat(AT_FDCWD, \"/usr/lib/python3.14/encodings\", O_RDONLY|O_NONBLOCK|O_CLOEXEC|O_DIRECTORY) = 3",
+      "28383 openat(AT_FDCWD, \"/usr/lib/python3.14/encodings/__pycache__/aliases.cpython-314.pyc\", O_RDONLY|O_CLOEXEC) = 3",
+      "28383 openat(AT_FDCWD, \"/usr/lib/python3.14/encodings/__pycache__/utf_8.cpython-314.pyc\", O_RDONLY|O_CLOEXEC) = 3",
+      "28383 openat(AT_FDCWD, \"/usr/local/lib/python3.14/dist-packages\", O_RDONLY|O_NONBLOCK|O_CLOEXEC|O_DIRECTORY) = 3",
+      "28383 openat(AT_FDCWD, \"/usr/lib/python3/dist-packages\", O_RDONLY|O_NONBLOCK|O_CLOEXEC|O_DIRECTORY) = 3",
+      "28383 openat(AT_FDCWD, \"/usr/lib/python3/dist-packages/distutils-precedence.pth\", O_RDONLY|O_CLOEXEC) = 3",
+      "28383 openat(AT_FDCWD, \"/usr/lib/python3.14/encodings/__pycache__/utf_8_sig.cpython-314.pyc\", O_RDONLY|O_CLOEXEC) = 3",
+      "28383 openat(AT_FDCWD, \"/usr/lib/python3.14/lib-dynload\", O_RDONLY|O_NONBLOCK|O_CLOEXEC|O_DIRECTORY) = 3",
+      "28383 openat(AT_FDCWD, \"/usr/local/lib/python3.14/dist-packages\", O_RDONLY|O_NONBLOCK|O_CLOEXEC|O_DIRECTORY) = 3",
+      "28383 openat(AT_FDCWD, \"/usr/lib/python3/dist-packages\", O_RDONLY|O_NONBLOCK|O_CLOEXEC|O_DIRECTORY) = 3",
+      "28383 openat(AT_FDCWD, \"/usr/lib/python3/dist-packages/_distutils_hack/__pycache__/__init__.cpython-314.pyc\", O_RDONLY|O_CLOEXEC) = 3",
+      "28383 openat(AT_FDCWD, \"/usr/lib/python3.14/__pycache__/sitecustomize.cpython-314.pyc\", O_RDONLY|O_CLOEXEC) = 3",
+      "28383 openat(AT_FDCWD, \"/usr/lib/python3/dist-packages/__pycache__/apport_python_hook.cpython-314.pyc\", O_RDONLY|O_CLOEXEC) = 3",
+      "28383 openat(AT_FDCWD, \"/usr/lib/python3.14/__pycache__/types.cpython-314.pyc\", O_RDONLY|O_CLOEXEC) = 3",
+      "28383 openat(AT_FDCWD, \"/sandbox/target\", O_RDONLY|O_CLOEXEC) = 3",
+      "28383 openat(AT_FDCWD, \"/sandbox/target\", O_RDONLY) = 3",
+      "28383 openat(AT_FDCWD, \"/sandbox/target\", O_RDONLY|O_NONBLOCK|O_CLOEXEC|O_DIRECTORY) = 3",
+      "28383 openat(AT_FDCWD, \"/usr/lib/python3.14/__pycache__/socket.cpython-314.pyc\", O_RDONLY|O_CLOEXEC) = 3",
+      "28383 openat(AT_FDCWD, \"/usr/lib/python3.14/__pycache__/enum.cpython-314.pyc\", O_RDONLY|O_CLOEXEC) = 3",
+      "28383 openat(AT_FDCWD, \"/usr/lib/python3.14/__pycache__/hashlib.cpython-314.pyc\", O_RDONLY|O_CLOEXEC) = 3",
+      "28383 openat(AT_FDCWD, \"/usr/lib/python3.14/lib-dynload/_hashlib.cpython-314-x86_64-linux-gnu.so\", O_RDONLY|O_CLOEXEC) = 3",
+      "28383 openat(AT_FDCWD, \"/etc/ld.so.cache\", O_RDONLY|O_CLOEXEC) = 3",
+      "28383 openat(AT_FDCWD, \"/usr/lib/x86_64-linux-gnu/libcrypto.so.3\", O_RDONLY|O_CLOEXEC) = 3",
+      "28383 openat(AT_FDCWD, \"/usr/lib/x86_64-linux-gnu/libzstd.so.1\", O_RDONLY|O_CLOEXEC) = 3",
+      "28383 openat(AT_FDCWD, \"/proc/sys/crypto/fips_enabled\", O_RDONLY) = -1 ENOENT (No such file or directory)",
+      "28383 openat(AT_FDCWD, \"/etc/ubuntu-fips\", O_RDONLY) = -1 ENOENT (No such file or directory)",
+      "28383 openat(AT_FDCWD, \"/usr/lib/ssl/openssl.cnf\", O_RDONLY) = 3",
+      "28383 +++ exited with 0 +++"
+    ],
+    "console_output": "================================================================================\n  ANY.RUN + REA UNIVERSAL DETONATION SANDBOX — LIVE SESSION RECORDER\n================================================================================\n[*] Artifact   : cobalt_beacon_simulator.py\n[*] Target OS  : Linux / POSIX Scripting\n[*] Family     : Executable Script\n[*] Magic      : Python script, ASCII text executable\n[*] REA Engine : capture-process (REA v6.7.0)\n================================================================================\n\n[PHASE 1/4] REA STATIC & BINARY RECONSTRUCTION...\n -> Executed REA tools: 0\n -> Extracted Capabilities: /etc/passwd\n -> Network IOCs found: 1 URLs, 1 IPs\n\n[PHASE 2/4] ENVIRONMENT PREPARATION & INSTALLER / RUNTIME HOOKS...\n -> Detonating script under strace + python3 sandbox...\n[*] Starting Stage-1 Beacon Simulator...\n[*] Checking system identity: Linux sandbox-vm-01 6.12.0-generic x86_64\n[*] Probing target C2 endpoint: http://198.51.100.200:8443/stage2/beacon.bin\n[*] Checking /etc/passwd and local environment variables...\n -> Sandbox Host: anyrun-sandbox-node01 (Isolated Network Namespace)\n[+] Simulation complete (Safe Canary Sample).\n -> Captured Syscalls Summary:\n28383 execve(\"/usr/bin/python3\", [\"python3\", \"/sandbox/target\"...], 0x7ffe35555c30 /* 26 vars */) = 0\n28383 openat(AT_FDCWD, \"/etc/ld.so.cache\", O_RDONLY|O_CLOEXEC) = 3\n28383 openat(AT_FDCWD, \"/usr/lib/x86_64-linux-gnu/libm.so.6\", O_RDONLY|O_CLOEXEC) = 3\n28383 openat(AT_FDCWD, \"/usr/lib/x86_64-linux-gnu/libz.so.1\", O_RDONLY|O_CLOEXEC) = 3\n28383 openat(AT_FDCWD, \"/usr/lib/x86_64-linux-gnu/libexpat.so.1\", O_RDONLY|O_CLOEXEC) = 3\n28383 openat(AT_FDCWD, \"/usr/lib/x86_64-linux-gnu/libc.so.6\", O_RDONLY|O_CLOEXEC) = 3\n28383 openat(AT_FDCWD, \"/usr/lib/locale/locale-archive\", O_RDONLY|O_CLOEXEC) = 3\n28383 openat(AT_FDCWD, \"/usr/lib/x86_64-linux-gnu/gconv/gconv-modules.cache\", O_RDONLY|O_CLOEXEC) = 3\n28383 openat(AT_FDCWD, \"/proc/self/maps\", O_RDONLY|O_CLOEXEC) = 3\n28383 openat(AT_FDCWD, \"/usr/pyvenv.cfg\", O_RDONLY) = -1 ENOENT (No such file or directory)\n28383 openat(AT_FDCWD, \"/usr/bin/pyvenv.cfg\", O_RDONLY) = -1 ENOENT (No such file or directory)\n28383 openat(AT_FDCWD, \"/usr/bin/python3._pth\", O_RDONLY) = -1 ENOENT (No such file or directory)\n28383 openat(AT_FDCWD, \"/usr/bin/python3.14._pth\", O_RDONLY) = -1 ENOENT (No such file or directory)\n28383 openat(AT_FDCWD, \"/usr/bin/pybuilddir.txt\", O_RDONLY) = -1 ENOENT (No such file or directory)\n28383 openat(AT_FDCWD, \"/etc/localtime\", O_RDONLY|O_CLOEXEC) = 3\n28383 openat(AT_FDCWD, \"/usr/lib/python3.14\", O_RDONLY|O_NONBLOCK|O_CLOEXEC|O_DIRECTORY) = 3\n28383 openat(AT_FDCWD, \"/usr/lib/python3.14/encodings/__pycache__/__init__.cpython-314.pyc\", O_RDONLY|O_CLOEXEC) = 3\n28383 openat(AT_FDCWD, \"/usr/lib/python3.14/encodings\", O_RDONLY|O_NONBLOCK|O_CLOEXEC|O_DIRECTORY) = 3\n\n[PHASE 3/4] NETWORK & FILESYSTEM BEHAVIORAL CORRELATION...\n -> Checking process tree, file descriptors, and socket states...\n[PHASE 4/4] GENERATING REA EVIDENCE BUNDLE & AI THREAT VERDICT...\n -> Session recording finalized successfully.\n"
+  },
+  "scoring": {
+    "threat_score": 70,
+    "verdict": "MALICIOUS",
+    "reasons": [
+      "Referências diretas a arquivos críticos de credenciais ou persistência SSH.",
+      "Indicadores de rede embutidos: 1 URLs e 1 endereços IP.",
+      "Chaves de Registro do Windows associadas a persistência ou configuração de sistema."
+    ],
+    "mitre_attack": [
+      {
+        "id": "T1003",
+        "tactic": "Credential Access",
+        "name": "OS Credential Dumping"
+      },
+      {
+        "id": "T1071",
+        "tactic": "Command and Control",
+        "name": "Application Layer Protocol"
+      },
+      {
+        "id": "T1547.001",
+        "tactic": "Persistence",
+        "name": "Registry Run Keys / Startup Folder"
+      }
+    ]
+  },
+  "ai_report": {
+    "provider": "ollama (fallback)",
+    "model": "qwen3-hermes:latest",
+    "markdown": "# 🛡️ Relatório Técnico Forense ANY.RUN + REA\n\n## 1. Resumo Executivo & Veredito\n- **Arquivo Analisado**: `cobalt_beacon_simulator.py`\n- **Sistema Operacional Alvo**: `Linux / POSIX Scripting`\n- **Família do Artefato**: `Executable Script`\n- **Veredito Final**: **MALICIOUS** (Threat Score: **70/100**)\n- **SHA-256**: `6af86b7c66707dd82d489994b231a7f0328d57d234f75506574d8768c706bbd8`\n\n## 2. Análise Estática via REA (Reverse Engineer Anything)\n- **Entropia de Shannon**: `5.4185` bits/byte\n- **Ferramentas REA Executadas**: ``\n- **Capacidades Detectadas**: `/etc/passwd`\n\n## 3. Comportamento na Detonação Dinâmica & Sessão Gravada\n- **Gravação de Vídeo**: `session_recording.mp4` (1204912 bytes)\n- **Razões de Pontuação**:\n  - Referências diretas a arquivos críticos de credenciais ou persistência SSH.\n  - Indicadores de rede embutidos: 1 URLs e 1 endereços IP.\n  - Chaves de Registro do Windows associadas a persistência ou configuração de sistema.\n\n## 4. Recomendações Zero Trust\n- Bloquear preventivamente o hash SHA-256 `6af86b7c66707dd82d489994b231a7f0328d57d234f75506574d8768c706bbd8` no ThreatLocker Zero Trust Control Plane caso não seja um binário homologado."
+  },
+  "pdf_report": "forensic_report.pdf"
+}

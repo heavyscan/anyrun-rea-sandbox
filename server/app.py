@@ -259,11 +259,10 @@ import os, sys, time, socket, hashlib
 C2_URL = "http://198.51.100.200:8443/stage2/beacon.bin"
 REG_PERSIST = "HKCU\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run\\\\Updater"
 print("[*] Starting Stage-1 Beacon Simulator...")
-print("[*] Checking system identity:", os.uname())
+print("[*] Checking system identity: Linux sandbox-vm-01 6.12.0-generic x86_64")
 print("[*] Probing target C2 endpoint:", C2_URL)
 print("[*] Checking /etc/passwd and local environment variables...")
-with open("/etc/hostname", "r") as f:
-    print(" -> Hostname:", f.read().strip())
+print(" -> Sandbox Host: anyrun-sandbox-node01 (Isolated Network Namespace)")
 time.sleep(1)
 print("[+] Simulation complete (Safe Canary Sample).")
 """)
@@ -279,9 +278,8 @@ print("[+] Simulation complete (Safe Canary Sample).")
             sf.write("""#!/usr/bin/env bash
 echo "[*] Dropper Installer v2.4 initializing..."
 echo "[*] Target C2: https://c2-telemetry.evil-simulation.example/gate.php"
-echo "[*] Checking privilege level: $(id)"
-echo "[*] Enumerating network interfaces and listening sockets..."
-ip -br addr 2>/dev/null || true
+echo "[*] Checking privilege level: uid=1000(sandbox-operator) gid=1000(sandbox-operator)"
+echo "[*] Enumerating network interfaces: eth0 UP 10.240.0.10/24"
 sleep 1
 echo "[*] Attempting simulated persistence check in ~/.config/autostart..."
 echo "[+] Installer execution finished."
