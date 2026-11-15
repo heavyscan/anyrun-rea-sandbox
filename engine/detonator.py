@@ -176,7 +176,9 @@ def extract_ioc_strings(file_path):
     interesting_strings = []
 
     try:
-        out = subprocess.run(["strings", "-n", "5", file_path], capture_output=True, text=True, errors="ignore", timeout=15).stdout
+        # Read at most the first 20 MB of huge files so `strings` completes in < 1 second
+        cmd = f'head -c 20971520 "{file_path}" | strings -n 5'
+        out = subprocess.run(["bash", "-c", cmd], capture_output=True, text=True, errors="ignore", timeout=10).stdout
         lines = out.splitlines()
 
         url_re = re.compile(r"https?://[^\s\"\'<>]+", re.I)
@@ -335,23 +337,25 @@ def run_rea_static_pipeline(file_path, file_meta, work_dir):
     return results
 
 
-def run_dynamic_detonation_with_video(file_path, file_meta, iocs, rea_static, work_dir, duration_sec=12):
+def run_dynamic_detonation_with_video(file_path, file_meta, iocs, rea_static, work_dir, hashes=None, duration_sec=12):
     """
     ANY.RUN-style Interactive & Automated Detonation Sandbox with Live Video Recording (.mp4 / .webm):
     1. Starts an isolated virtual X11 display (`Xvfb :99 -screen 0 1280x720x24`) + `fluxbox` window manager.
-    2. Starts `ffmpeg -f x11grab` recording at 15fps into `session_recording.mp4` (H.264, browser-compatible yuv420p).
-    3. Launches a visual multi-pane Detonation HUD & Live Execution Window inside X11 while executing/installing
-       the artifact inside a monitored sandbox (`strace` / `wine` in `kali-sandbox` / `node` / `python3` / `bash` / REA `capture-process`),
-       capturing every syscall, spawned process, file modification, network connection attempt, and GUI window!
+    2. Launches the visual multi-pane Detonation HUD & Live Execution Window (and PDF/Document visual renderer if applicable)
+       BEFORE starting `ffmpeg -f x11grab`, and reuses precomputed SHA-256/entropy so large (>1GB) files never delay window creation!
+    3. Captures every syscall, spawned process, file modification, network connection attempt, and GUI window.
     4. Extracts keyframe screenshots + saves the full `.mp4` video alongside the report.
     """
+    if not hashes:
+        hashes = {"sha256": "computed", "entropy": 5.0}
     video_path = os.path.join(work_dir, "session_recording.mp4")
     screenshot_path = os.path.join(work_dir, "session_keyframe.png")
     strace_log_path = os.path.join(work_dir, "strace_audit.log")
     detonation_log_path = os.path.join(work_dir, "detonation_console.log")
 
-    # Find a free display number between 80 and 199
-    display_num = 85 + (os.getpid() % 90)
+    # Find a unique free display number between 90 and 240
+    import random
+    display_num = random.randint(90, 230)
     display_str = f":{display_num}"
 
     # Build the live detonation runner script that executes inside the virtual desktop
@@ -420,11 +424,19 @@ docker exec kali-sandbox rm -rf /tmp/"{fname}" /tmp/apk_out >/dev/null 2>&1 || t
         elif "pdf" in m_low or ext in (".pdf", ".doc", ".docx", ".xls", ".xlsx", ".rtf"):
             f.write(f"""
 echo " -> Deep Document & PDF Stream Forensics (/JS, /JavaScript, /OpenAction, /Launch, /EmbeddedFiles)..."
-grep -a -iE "/JS|/JavaScript|/OpenAction|/AA|/Launch|/EmbeddedFiles|/URI|/RichMedia|/ObjStm" "{file_path}" 2>/dev/null | head -n 18 || echo " -> No malicious PDF auto-action tags (/OpenAction, /JavaScript, /Launch) detected."
-strace -f -e trace=openat,read -o "{strace_log_path}" file "{file_path}" 2>&1 | sed -E 's#/home/eduheavy[^ "]*#/sandbox/target#g; s/eduheavy/sandbox-operator/g; s/heavyscan/anyrun-sandbox-node01/g'
+pdfinfo "{file_path}" 2>/dev/null | head -n 15 || true
+echo " -> Scanning PDF Object Streams for Active Content / Exploits:"
+head -c 25000000 "{file_path}" | strings -n 5 | grep -iE "/JS|/JavaScript|/OpenAction|/AA|/Launch|/EmbeddedFiles|/URI|/RichMedia|/ObjStm|/AcroForm" | head -n 16 || echo " -> No malicious PDF auto-action tags detected."
+strace -f -e trace=openat,read -o "{strace_log_path}" pdfinfo "{file_path}" >/dev/null 2>&1 || true
 sed -i -E 's#/home/eduheavy[^ "]*#/sandbox/target#g; s/eduheavy/sandbox-operator/g; s/heavyscan/anyrun-sandbox-node01/g' "{strace_log_path}" 2>/dev/null || true
-echo " -> Extracted Document Metadata & Readable Streams:"
-strings -n 6 "{file_path}" | grep -vE "^[0-9 ]+$" | head -n 18
+echo " -> Rendering PDF Pages in Sandbox Display (pdftoppm -> X11 Preview)..."
+pdftoppm -png -f 1 -l 1 -scale-to 520 "{file_path}" "{work_dir}/pdf_page" 2>/dev/null || true
+if [ -f "{work_dir}/pdf_page-1.png" ] || [ -f "{work_dir}/pdf_page-01.png" ] || [ -f "{work_dir}/pdf_page-001.png" ]; then
+    PAGE_IMG=$(ls "{work_dir}"/pdf_page*.png 2>/dev/null | head -n 1)
+    display -title "PDF Visual Sandbox Preview" -geometry +700+280 "$PAGE_IMG" &
+fi
+echo " -> Extracted Readable Document Text & Structure:"
+head -c 5000000 "{file_path}" | strings -n 8 | grep -E "^[A-Za-z0-9 /,.:;()-]+$" | head -n 14
 """)
         else:
             f.write(f"""
@@ -481,33 +493,18 @@ sleep 2
 
         if shutil.which("fluxbox"):
             wm_proc = subprocess.Popen(["fluxbox"], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            time.sleep(0.5)
+            time.sleep(0.4)
 
-        # Start FFmpeg X11 screen recorder
-        ffmpeg_cmd = [
-            "ffmpeg", "-y",
-            "-f", "x11grab",
-            "-video_size", "1280x720",
-            "-framerate", "15",
-            "-i", f"{display_str}.0",
-            "-t", str(duration_sec),
-            "-c:v", "libx264",
-            "-preset", "ultrafast",
-            "-pix_fmt", "yuv420p",
-            "-movflags", "+faststart",
-            video_path
-        ]
-        ffmpeg_proc = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-        # Launch two visual XTerm panes on the 1280x720 canvas (Left: Live Detonation & Installer Trace, Right: REA Hex/Disassembly/IOC Monitor)
+        # Build HUD script using ALREADY computed hashes (instantaneous, even for 10GB+ files!)
         hud_script = os.path.join(work_dir, "hud_right.sh")
         with open(hud_script, "w") as hf:
             hf.write(f"""#!/usr/bin/env bash
 echo "=========================================================="
 echo "   REA DEEP TELEMETRY & IOC MONITOR"
 echo "=========================================================="
-echo "SHA-256 : { (compute_hashes_and_entropy(file_path)['sha256'])[:40] }..."
-echo "Entropy : { compute_hashes_and_entropy(file_path)['entropy'] } bits/byte"
+echo "SHA-256 : {hashes.get('sha256', '')[:40]}..."
+echo "Entropy : {hashes.get('entropy', 0.0)} bits/byte"
+echo "Size    : {hashes.get('size_bytes', 0)} bytes"
 echo "----------------------------------------------------------"
 echo "[SUSPICIOUS CAPABILITIES / APIS]"
 """)
@@ -515,14 +512,15 @@ echo "[SUSPICIOUS CAPABILITIES / APIS]"
                 hf.write(f'echo "  * {cap}"\n')
             hf.write('echo "----------------------------------------------------------"\n')
             hf.write('echo "[EXTRACTED STRINGS / ENDPOINTS]"\n')
-            for s in (iocs.get("urls") + iocs.get("ips") + iocs.get("notable_strings"))[:14]:
+            for s in (iocs.get("urls") + iocs.get("ips") + iocs.get("notable_strings"))[:10]:
                 safe_s = s.replace('"', "'").replace("$", "")[:55]
                 hf.write(f'echo "  > {safe_s}"\n')
             hf.write('echo "----------------------------------------------------------"\n')
-            hf.write(f'xxd -l 192 "{file_path}" 2>/dev/null || hexdump -C -n 192 "{file_path}" 2>/dev/null\n')
-            hf.write("sleep 15\n")
+            hf.write(f'xxd -l 160 "{file_path}" 2>/dev/null || hexdump -C -n 160 "{file_path}" 2>/dev/null\n')
+            hf.write("sleep 20\n")
         os.chmod(hud_script, 0o755)
 
+        # Launch the XTerm windows FIRST so they are immediately visible on screen from frame 0
         if shutil.which("xterm"):
             subprocess.Popen(
                 [
@@ -546,17 +544,33 @@ echo "[SUSPICIOUS CAPABILITIES / APIS]"
                 ],
                 env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
             )
+            time.sleep(0.5)
         else:
-            # Fallback if xterm not present: run runner directly
-            subprocess.run(["bash", "-c", f"{runner_script} > {detonation_log_path} 2>&1"], timeout=duration_sec)
+            subprocess.Popen(["bash", "-c", f"{runner_script} > {detonation_log_path} 2>&1"])
 
-        # Wait ~4 seconds and capture a high-res PNG keyframe screenshot
+        # Now start FFmpeg X11 screen recorder so 100% of the video shows the active detonation windows
+        ffmpeg_cmd = [
+            "ffmpeg", "-y",
+            "-f", "x11grab",
+            "-video_size", "1280x720",
+            "-framerate", "15",
+            "-i", f"{display_str}.0",
+            "-t", str(duration_sec),
+            "-c:v", "libx264",
+            "-preset", "ultrafast",
+            "-pix_fmt", "yuv420p",
+            "-movflags", "+faststart",
+            video_path
+        ]
+        ffmpeg_proc = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+        # Wait ~4.5 seconds and capture a high-res PNG keyframe screenshot
         time.sleep(4.5)
         if shutil.which("import"):
             subprocess.run(["import", "-window", "root", screenshot_path], env=env, timeout=5)
 
         # Wait for ffmpeg recording to finish cleanly
-        ffmpeg_proc.wait(timeout=duration_sec + 6)
+        ffmpeg_proc.wait(timeout=duration_sec + 8)
 
     except Exception as e:
         print(f"[!] Video capture warning: {e}", file=sys.stderr)
@@ -864,7 +878,7 @@ def run_complete_submission(task_id, file_path, filename, work_dir, ai_config, s
     rea_static = run_rea_static_pipeline(file_path, file_meta, work_dir)
 
     update("Detonando artefato em sandbox visual e gravando vídeo MP4 da sessão...", 68)
-    dynamic_res = run_dynamic_detonation_with_video(file_path, file_meta, iocs, rea_static, work_dir, duration_sec=11)
+    dynamic_res = run_dynamic_detonation_with_video(file_path, file_meta, iocs, rea_static, work_dir, hashes=hashes, duration_sec=11)
 
     update("Calculando Threat Score e mapeando táticas MITRE ATT&CK...", 82)
     scoring = compute_threat_score_and_mitre(hashes, file_meta, iocs, rea_static, dynamic_res)
