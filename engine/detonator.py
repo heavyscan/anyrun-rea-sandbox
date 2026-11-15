@@ -417,10 +417,20 @@ docker cp "{file_path}" kali-sandbox:/tmp/"{fname}" >/dev/null 2>&1 || true
 docker exec kali-sandbox apktool d -f /tmp/"{fname}" -o /tmp/apk_out 2>&1 | head -n 20 || true
 docker exec kali-sandbox rm -rf /tmp/"{fname}" /tmp/apk_out >/dev/null 2>&1 || true
 """)
+        elif "pdf" in m_low or ext in (".pdf", ".doc", ".docx", ".xls", ".xlsx", ".rtf"):
+            f.write(f"""
+echo " -> Deep Document & PDF Stream Forensics (/JS, /JavaScript, /OpenAction, /Launch, /EmbeddedFiles)..."
+grep -a -iE "/JS|/JavaScript|/OpenAction|/AA|/Launch|/EmbeddedFiles|/URI|/RichMedia|/ObjStm" "{file_path}" 2>/dev/null | head -n 18 || echo " -> No malicious PDF auto-action tags (/OpenAction, /JavaScript, /Launch) detected."
+strace -f -e trace=openat,read -o "{strace_log_path}" file "{file_path}" 2>&1 | sed -E 's#/home/eduheavy[^ "]*#/sandbox/target#g; s/eduheavy/sandbox-operator/g; s/heavyscan/anyrun-sandbox-node01/g'
+sed -i -E 's#/home/eduheavy[^ "]*#/sandbox/target#g; s/eduheavy/sandbox-operator/g; s/heavyscan/anyrun-sandbox-node01/g' "{strace_log_path}" 2>/dev/null || true
+echo " -> Extracted Document Metadata & Readable Streams:"
+strings -n 6 "{file_path}" | grep -vE "^[0-9 ]+$" | head -n 18
+""")
         else:
             f.write(f"""
 echo " -> Inspecting artifact structure, headers, and embedded streams..."
-strace -f -e trace=openat,read -o "{strace_log_path}" file "{file_path}" 2>&1
+strace -f -e trace=openat,read -o "{strace_log_path}" file "{file_path}" 2>&1 | sed -E 's#/home/eduheavy[^ "]*#/sandbox/target#g; s/eduheavy/sandbox-operator/g; s/heavyscan/anyrun-sandbox-node01/g'
+sed -i -E 's#/home/eduheavy[^ "]*#/sandbox/target#g; s/eduheavy/sandbox-operator/g; s/heavyscan/anyrun-sandbox-node01/g' "{strace_log_path}" 2>/dev/null || true
 strings -n 6 "{file_path}" | head -n 20
 """)
 

@@ -28,8 +28,10 @@ STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 SAMPLES_DIR = os.path.join(BASE_DIR, "samples")
 
 app = Flask(__name__, static_folder=STATIC_DIR)
-# Unlimited upload size (no MAX_CONTENT_LENGTH limit)
+# Unlimited upload size (no MAX_CONTENT_LENGTH or MAX_FORM_MEMORY_SIZE limit)
 app.config["MAX_CONTENT_LENGTH"] = None
+app.config["MAX_FORM_MEMORY_SIZE"] = None
+app.config["MAX_FORM_PARTS"] = 10000
 
 db_lock = threading.Lock()
 
@@ -189,6 +191,57 @@ def api_list_submissions():
         rows = [dict(r) for r in cur.fetchall()]
         conn.close()
     return jsonify({"submissions": rows})
+
+
+@app.route("/api/submit-raw", methods=["POST"])
+def api_submit_raw():
+    """
+    Raw binary stream upload endpoint for mobile browsers (Android/iOS) and huge files.
+    Reads directly from request.stream in 256KB chunks without multipart form overhead,
+    avoiding mobile Safari/Chrome content:// URI multipart resets.
+    """
+    raw_name = request.headers.get("X-File-Name") or request.args.get("filename") or "uploaded_artifact.bin"
+    try:
+        from urllib.parse import unquote
+        safe_name = os.path.basename(unquote(raw_name)).strip() or "uploaded_artifact.bin"
+    except Exception:
+        safe_name = "uploaded_artifact.bin"
+
+    task_id = f"task-{ datetime.datetime.now().strftime('%Y%m%d-%H%M%S') }-{uuid.uuid4().hex[:6]}"
+    work_dir = os.path.join(SUBMISSIONS_DIR, task_id)
+    os.makedirs(work_dir, exist_ok=True)
+    saved_path = os.path.join(work_dir, safe_name)
+
+    total_written = 0
+    with open(saved_path, "wb") as out_f:
+        while True:
+            chunk = request.stream.read(262144)
+            if not chunk:
+                break
+            out_f.write(chunk)
+            total_written += len(chunk)
+
+    if total_written == 0:
+        shutil.rmtree(work_dir, ignore_errors=True)
+        return jsonify({"error": "Arquivo vazio recebido (0 bytes)."}), 400
+
+    with db_lock:
+        conn = get_db()
+        conn.execute("""
+            INSERT INTO submissions
+            (task_id, filename, target_os, artifact_family, sha256, size_bytes, status, stage, progress, verdict, threat_score, has_video, has_pdf, created_at, work_dir)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        """, (
+            task_id, safe_name, "Detectando...", "Analisando cabeçalhos...", "",
+            total_written, "queued", "Iniciando pipeline REA + Sandbox...", 5,
+            "ANALYZING", 0, 0, 0, now_iso(), work_dir
+        ))
+        conn.commit()
+        conn.close()
+
+    t = threading.Thread(target=worker_process_submission, args=(task_id, saved_path, safe_name, work_dir), daemon=True)
+    t.start()
+    return jsonify({"ok": True, "tasks": [{"task_id": task_id, "filename": safe_name, "size_bytes": total_written}]})
 
 
 @app.route("/api/submit", methods=["POST"])

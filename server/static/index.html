@@ -413,27 +413,30 @@
       <div class="brand-logo">AR</div>
       <div>
         <div class="brand-name">ANY.RUN + REA SANDBOX</div>
-        <div class="brand-tag">Universal Multi-OS Detonation • Video Recording • AI Forensics</div>
+      <div class=" brand-tag">Universal Multi-OS Detonation • Video Recording • AI Forensics</div>
       </div>
     </div>
     <div class="nav-actions">
       <button class="btn" onclick="openSettingsModal()">⚙️ Configurar IA (Local Ollama / API)</button>
-      <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">➕ Enviar Arquivos (Sem Limites)</button>
+      <label for="file-input" class="btn btn-primary" style="cursor:pointer;">➕ Enviar Arquivos (Sem Limites)</label>
     </div>
   </header>
 
   <div class="workspace">
     <!-- LEFT SIDEBAR: UPLOAD & SUBMISSIONS QUEUE -->
     <aside class="left-sidebar">
-      <input type="file" id="file-input" multiple style="display:none" onchange="uploadFiles(this.files)" />
-      <div class="dropzone" id="dropzone" onclick="document.getElementById('file-input').click()">
+      <input type="file" id="file-input" multiple accept="*/*" style="position:absolute; left:-9999px; width:1px; height:1px; opacity:0;" onchange="uploadFiles(this.files)" />
+      <label for="file-input" class="dropzone" id="dropzone" style="display:block;">
         <div style="font-size:26px; margin-bottom:6px;">📦</div>
-        <div class="dropzone-title">Arraste ou Clique para Detonar Arquivos</div>
-        <div class="dropzone-sub">
+        <div class="dropzone-title" id="dropzone-status-title">Toque ou Arraste para Detonar Arquivos</div>
+        <div class="dropzone-sub" id="dropzone-status-sub">
           Sem limite de tamanho ou quantidade.<br>
-          Suporta <strong>Windows (.exe, .dll, .msi, .ps1)</strong>, <strong>Linux (.elf, .deb, .sh, .py)</strong>, <strong>Android (.apk)</strong>, <strong>macOS (.dmg, Mach-O)</strong>, <strong>Electron/JS</strong>, <strong>WASM</strong>, <strong>SQLite</strong>, <strong>PCAP</strong> e <strong>Documentos</strong>.
+          Suporta <strong>PDF / Office (.pdf, .docx, .xlsx)</strong>, <strong>Windows (.exe, .dll, .msi, .ps1)</strong>, <strong>Linux (.elf, .deb, .sh, .py)</strong>, <strong>Android (.apk)</strong>, <strong>macOS</strong>, <strong>WASM</strong>, <strong>SQLite</strong> e <strong>PCAP</strong>.
         </div>
-      </div>
+        <div class="progress-bar" id="upload-progress-wrap" style="display:none; margin-top:10px; height:8px;">
+          <div class="progress-fill" id="upload-progress-bar" style="width:0%"></div>
+        </div>
+      </label>
 
       <div class="demo-bar">
         <div class="section-label">Detonação Rápida de Teste (1-Clique)</div>
@@ -571,16 +574,78 @@
       if (e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files);
     });
 
+    function uploadSingleFileRaw(file, index, total) {
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        const safeName = encodeURIComponent(file.name || 'documento.pdf');
+        xhr.open('POST', `/api/submit-raw?filename=${safeName}`, true);
+        xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+        xhr.setRequestHeader('X-File-Name', safeName);
+
+        const titleEl = document.getElementById('dropzone-status-title');
+        const subEl = document.getElementById('dropzone-status-sub');
+        const wrapEl = document.getElementById('upload-progress-wrap');
+        const barEl = document.getElementById('upload-progress-bar');
+        wrapEl.style.display = 'block';
+
+        xhr.upload.onprogress = (ev) => {
+          if (ev.lengthComputable) {
+            const pct = Math.round((ev.loaded / ev.total) * 100);
+            barEl.style.width = pct + '%';
+            titleEl.textContent = `📤 Enviando (${index}/${total}): ${file.name} (${pct}%)`;
+            subEl.textContent = `${(ev.loaded / 1024).toFixed(1)} KB de ${(ev.total / 1024).toFixed(1)} KB enviados...`;
+          }
+        };
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              resolve(JSON.parse(xhr.responseText));
+            } catch (e) {
+              reject(new Error('Resposta inválida do servidor'));
+            }
+          } else {
+            reject(new Error(`HTTP ${xhr.status}: ${xhr.responseText}`));
+          }
+        };
+
+        xhr.onerror = () => reject(new Error('Falha de rede durante o upload'));
+        xhr.send(file);
+      });
+    }
+
     async function uploadFiles(fileList) {
       if (!fileList || !fileList.length) return;
-      const fd = new FormData();
-      for (const f of fileList) fd.append('files', f);
-      const res = await fetch('/api/submit', { method: 'POST', body: fd });
-      const data = await res.json();
-      if (data.tasks && data.tasks.length) {
-        currentTaskId = data.tasks[0].task_id;
-        lastCompletedLoaded = null;
-        loadSubmissions();
+      const filesArr = Array.from(fileList);
+      const titleEl = document.getElementById('dropzone-status-title');
+      const subEl = document.getElementById('dropzone-status-sub');
+      const wrapEl = document.getElementById('upload-progress-wrap');
+      const barEl = document.getElementById('upload-progress-bar');
+
+      try {
+        let firstTaskId = null;
+        for (let i = 0; i < filesArr.length; i++) {
+          const data = await uploadSingleFileRaw(filesArr[i], i + 1, filesArr.length);
+          if (data.tasks && data.tasks.length && !firstTaskId) {
+            firstTaskId = data.tasks[0].task_id;
+          }
+        }
+        titleEl.textContent = '✅ Upload concluído! Iniciando detonação REA...';
+        barEl.style.width = '100%';
+        if (firstTaskId) {
+          currentTaskId = firstTaskId;
+          lastCompletedLoaded = null;
+          loadSubmissions();
+        }
+        setTimeout(() => {
+          wrapEl.style.display = 'none';
+          titleEl.textContent = 'Toque ou Arraste para Detonar Arquivos';
+        }, 3000);
+      } catch (err) {
+        titleEl.textContent = '❌ Erro ao enviar: ' + err.message;
+        subEl.textContent = 'Toque novamente para tentar reenviar.';
+      } finally {
+        document.getElementById('file-input').value = '';
       }
     }
 
