@@ -50,7 +50,7 @@ Environment="ANYRUN_AI_PROVIDER=${AI_PROVIDER}"
 Environment="ANYRUN_AI_MODEL=${AI_MODEL}"
 Environment="ANYRUN_AI_BASE_URL=${AI_BASE_URL}"
 Environment="ANYRUN_AI_API_KEY=${AI_API_KEY}"
-ExecStart=/usr/bin/gunicorn --workers 2 --threads 8 --bind 0.0.0.0:${PORT} --timeout 300 app:app
+ExecStart=/usr/bin/gunicorn --workers 2 --threads 8 --bind 0.0.0.0:${PORT} --timeout 300 --keep-alive 15 --limit-request-line 0 --limit-request-field_size 0 app:app
 Restart=always
 RestartSec=3
 

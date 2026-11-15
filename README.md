@@ -49,6 +49,13 @@ Este repositório inclui dois pacotes completos de detonação reais (100% sanit
 - 📦 **Bundle Completo de Evidências REA**: [`report.json`](examples/02_suspicious_installer_dropper_sh/report.json)
 - 🔍 **Rastreamento de Syscalls (`strace`)**: [`strace_audit.log`](examples/02_suspicious_installer_dropper_sh/strace_audit.log)
 
+### 3. [`examples/03_pdf_document_forensics/`](examples/03_pdf_document_forensics/) — Análise Forense de Documento PDF (Mobile Upload)
+![Screenshot Detonação PDF](examples/03_pdf_document_forensics/session_keyframe.png)
+- 🎥 **Vídeo da Sessão Gravada (`MP4 H.264`)**: [`session_recording.mp4`](examples/03_pdf_document_forensics/session_recording.mp4)
+- 📄 **Relatório Executivo em PDF**: [`forensic_report.pdf`](examples/03_pdf_document_forensics/forensic_report.pdf)
+- 🤖 **Relatório Forense Gerado pela IA (`qwen3-hermes`)**: [`report.md`](examples/03_pdf_document_forensics/report.md)
+- 📦 **Bundle Completo de Evidências REA**: [`report.json`](examples/03_pdf_document_forensics/report.json)
+
 ---
 
 ## 🚀 Instalação Rápida
