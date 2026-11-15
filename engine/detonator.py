@@ -20,7 +20,7 @@ import urllib.request
 import urllib.error
 from collections import Counter
 
-REA_BIN = os.environ.get("REA_BIN", "/usr/local/bin/rea")
+REA_BIN = os.environ.get("REA_BIN") or shutil.which("rea") or "/usr/local/bin/rea"
 
 
 def sanitize_public_text(text):

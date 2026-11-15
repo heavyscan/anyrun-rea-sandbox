@@ -2,6 +2,7 @@
 # ==============================================================================
 # ANY.RUN + REA Universal Malware & Binary Detonation Sandbox — Installer
 # 100% Open-Source, Self-Hosted, Unlimited Uploads, Video Recording & AI Reports
+# Includes APT Post-Invoke Hook, needrestart protection & Self-Healing Systemd
 # ==============================================================================
 set -euo pipefail
 
@@ -31,38 +32,66 @@ if [[ "${1:-}" == "--interactive" ]]; then
     fi
 fi
 
-echo "[*] Instalando dependências de sistema (FFmpeg, Xvfb, XTerm, Fluxbox, Gunicorn)..."
-sudo apt-get update -q
-sudo apt-get install -y ffmpeg xvfb xterm fluxbox imagemagick gunicorn python3-flask python3-reportlab strace file binutils >/dev/null 2>&1 || true
+chmod +x "${INSTALL_DIR}/scripts/prestart_healthcheck.sh" \
+         "${INSTALL_DIR}/server/app.py" \
+         "${INSTALL_DIR}/engine/detonator.py"
 
+echo "[*] Instalando e marcando dependências críticas como manuais (proteção contra apt autoremove)..."
+sudo apt-get update -q
+sudo apt-get install -y ffmpeg xvfb xterm fluxbox imagemagick poppler-utils gunicorn python3-flask python3-reportlab python3-requests strace file binutils >/dev/null 2>&1 || true
+sudo apt-mark manual ffmpeg xvfb xterm fluxbox imagemagick poppler-utils gunicorn python3-flask python3-reportlab python3-requests strace file binutils >/dev/null 2>&1 || true
+
+# 1. Systemd Service with infinite Restart, PreStart Self-Healing, and Fallback WSGI Runner
 sudo tee /etc/systemd/system/anyrun-rea.service >/dev/null <<EOF
 [Unit]
 Description=ANY.RUN + REA Universal Malware & Binary Detonation Sandbox
-After=network-online.target docker.service ollama.service
-Wants=network-online.target
+After=network-online.target docker.service ollama.service kali-sandbox.service
+Wants=network-online.target docker.service ollama.service
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
 User=${USER_NAME}
 WorkingDirectory=${INSTALL_DIR}/server
+Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 Environment="ANYRUN_PORT=${PORT}"
 Environment="ANYRUN_AI_PROVIDER=${AI_PROVIDER}"
 Environment="ANYRUN_AI_MODEL=${AI_MODEL}"
 Environment="ANYRUN_AI_BASE_URL=${AI_BASE_URL}"
 Environment="ANYRUN_AI_API_KEY=${AI_API_KEY}"
-ExecStart=/usr/bin/gunicorn --workers 2 --threads 8 --bind 0.0.0.0:${PORT} --timeout 300 --keep-alive 15 --limit-request-line 0 --limit-request-field_size 0 app:app
+PermissionsStartOnly=true
+ExecStartPre=${INSTALL_DIR}/scripts/prestart_healthcheck.sh
+ExecStart=/bin/sh -c 'if command -v gunicorn >/dev/null 2>&1; then exec gunicorn --workers 2 --threads 8 --bind 0.0.0.0:${PORT} --timeout 300 --keep-alive 15 --limit-request-line 0 --limit-request-field_size 0 app:app; else exec /usr/bin/python3 ${INSTALL_DIR}/server/app.py; fi'
 Restart=always
 RestartSec=3
+TimeoutStopSec=25
+KillMode=control-group
 
 [Install]
 WantedBy=multi-user.target
+EOF
+
+# 2. Protect active detonation jobs from abrupt `needrestart` kills during apt upgrades,
+#    and use an APT Post-Invoke hook to smoothly validate & ensure services are running after upgrades.
+if [ -d /etc/needrestart/conf.d ]; then
+    sudo tee /etc/needrestart/conf.d/90-anyrun-threatlocker.conf >/dev/null <<'EOF'
+# Prevent needrestart from abruptly killing active malware detonation recordings
+$nrconf{override_rc}{qr(^anyrun-rea\.service$)} = 0;
+$nrconf{override_rc}{qr(^kali-sandbox\.service$)} = 0;
+EOF
+fi
+
+sudo tee /etc/apt/apt.conf.d/99-anyrun-rea-selfheal >/dev/null <<EOF
+DPkg::Post-Invoke {
+    "if [ -x ${INSTALL_DIR}/scripts/prestart_healthcheck.sh ]; then ${INSTALL_DIR}/scripts/prestart_healthcheck.sh >/dev/null 2>&1 || true; fi; systemctl is-active --quiet anyrun-rea.service || systemctl start anyrun-rea.service >/dev/null 2>&1 || true; systemctl is-active --quiet threatlocker-zt.service || systemctl start threatlocker-zt.service >/dev/null 2>&1 || true; systemctl is-active --quiet threatlocker-agent.service || systemctl start threatlocker-agent.service >/dev/null 2>&1 || true;";
+};
 EOF
 
 sudo systemctl daemon-reload
 sudo systemctl enable --now anyrun-rea.service
 
 if command -v ufw >/dev/null 2>&1; then
-    sudo ufw allow "${PORT}/tcp" comment 'ANY.RUN REA Sandbox Portal' || true
+    sudo ufw allow "${PORT}/tcp" comment 'ANY.RUN REA Sandbox Portal' >/dev/null 2>&1 || true
 fi
 
-echo "[+] ANY.RUN + REA Sandbox ativo em http://0.0.0.0:${PORT}"
+echo "[+] ANY.RUN + REA Sandbox blindado no systemd e contra atualizações em http://0.0.0.0:${PORT}"
