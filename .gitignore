@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+data/*.db
+data/*.db-shm
+data/*.db-wal
+data/submissions/*
+!data/submissions/.gitkeep
+*.log

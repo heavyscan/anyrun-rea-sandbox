@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ANY.RUN + REA — Interactive Malware & Binary Detonation Sandbox</title>
+  <style>
+    :root {
+      --bg-dark: #070d14;
+      --bg-panel: #0d1724;
+      --bg-card: #122033;
+      --border: #1e3552;
+      --accent: #00d2ff;
+      --accent-blue: #0072ff;
+      --text: #eef4fa;
+      --muted: #8ea4be;
+      --malicious: #ef4444;
+      --suspicious: #f59e0b;
+      --clean: #10b981;
+      --radius: 11px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: radial-gradient(circle at top left, #0e223b 0%, #070d14 60%);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Navigation Bar (ANY.RUN Style) */
+    .navbar {
+      height: 64px;
+      background: rgba(13, 23, 36, 0.95);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(8px);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-logo {
+      width: 38px;
+      height: 38px;
+      border-radius: 9px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-blue));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 16px;
+      color: #fff;
+      box-shadow: 0 0 18px rgba(0, 210, 255, 0.4);
+    }
+    .brand-name {
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+    }
+    .brand-tag {
+      font-size: 11px;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text);
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+      transition: all 0.16s ease;
+    }
+    .btn:hover { border-color: var(--accent); filter: brightness(1.15); }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent-blue));
+      border-color: var(--accent);
+      color: #fff;
+    }
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.18);
+      border-color: var(--malicious);
+      color: #f87171;
+    }
+    .btn-success {
+      background: rgba(16, 185, 129, 0.18);
+      border-color: var(--clean);
+      color: #34d399;
+    }
+
+    /* Layout Container */
+    .workspace {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      flex: 1;
+      min-height: calc(100vh - 64px);
+    }
+
+    /* Left Column: Upload Dropzone & Task Queue */
+    .left-sidebar {
+      background: rgba(13, 23, 36, 0.85);
+      border-right: 1px solid var(--border);
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow-y: auto;
+    }
+
+    .dropzone {
+      border: 2px dashed rgba(0, 210, 255, 0.45);
+      background: rgba(18, 32, 51, 0.65);
+      border-radius: var(--radius);
+      padding: 22px 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .dropzone:hover, .dropzone.dragover {
+      border-color: var(--accent);
+      background: rgba(0, 210, 255, 0.12);
+    }
+    .dropzone-title {
+      font-weight: 700;
+      font-size: 14px;
+      margin-bottom: 6px;
+      color: #fff;
+    }
+    .dropzone-sub {
+      font-size: 11.5px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .demo-bar {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .section-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.9px;
+      color: var(--muted);
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .task-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex: 1;
+    }
+    .task-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 12px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .task-card:hover { border-color: var(--accent); }
+    .task-card.active {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent);
+      background: rgba(0, 114, 255, 0.14);
+    }
+    .task-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .task-name {
+      font-weight: 700;
+      font-size: 13px;
+      word-break: break-all;
+    }
+    .verdict-pill {
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-size: 10.5px;
+      font-weight: 800;
+      letter-spacing: 0.4px;
+    }
+    .verdict-MALICIOUS { background: rgba(239,68,68,0.2); color: #f87171; border: 1px solid #ef4444; }
+    .verdict-SUSPICIOUS { background: rgba(245,158,11,0.2); color: #fbbf24; border: 1px solid #f59e0b; }
+    .verdict-CLEAN { background: rgba(16,185,129,0.2); color: #34d399; border: 1px solid #10b981; }
+    .verdict-ANALYZING { background: rgba(0,210,255,0.2); color: var(--accent); border: 1px solid var(--accent); }
+
+    .progress-bar {
+      height: 5px;
+      background: #08101a;
+      border-radius: 99px;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent-blue));
+      transition: width 0.3s ease;
+    }
+
+    /* Right Main View: ANY.RUN Arena (Video Player + Telemetry Tabs + AI Report) */
+    .main-arena {
+      padding: 22px 26px 60px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .arena-grid {
+      display: grid;
+      grid-template-columns: 1.25fr 1fr;
+      gap: 18px;
+    }
+
+    .panel {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+    }
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .panel-title {
+      font-size: 15px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .video-box {
+      background: #03070b;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      overflow: hidden;
+      aspect-ratio: 16 / 9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #000;
+    }
+
+    .score-dial {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 14px;
+      border-radius: 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      margin-bottom: 14px;
+    }
+    .score-number {
+      font-size: 34px;
+      font-weight: 900;
+      min-width: 78px;
+      text-align: center;
+    }
+
+    .meta-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+    }
+    .meta-table td {
+      padding: 7px 8px;
+      border-bottom: 1px solid rgba(30, 53, 82, 0.55);
+      vertical-align: top;
+    }
+    .meta-table td:first-child {
+      color: var(--muted);
+      width: 135px;
+      font-weight: 600;
+    }
+    .mono {
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-size: 11.5px;
+      color: #93c5fd;
+      word-break: break-all;
+    }
+
+    /* Sub-tabs inside Main Arena */
+    .subtabs {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 10px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+    .subtab {
+      padding: 7px 14px;
+      border-radius: 8px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .subtab.active {
+      background: linear-gradient(135deg, rgba(0,210,255,0.22), rgba(0,114,255,0.2));
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    .report-box {
+      background: #060b11;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px;
+      white-space: pre-wrap;
+      line-height: 1.65;
+      font-size: 13.5px;
+      color: #e2e8f0;
+      max-height: 560px;
+      overflow-y: auto;
+    }
+
+    /* Modal for AI Settings */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.72);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+      padding: 16px;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal {
+      background: var(--bg-panel);
+      border: 1px solid var(--accent);
+      border-radius: 12px;
+      width: 100%;
+      max-width: 540px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      font-size: 12.5px;
+    }
+    .form-group label { color: var(--muted); font-weight: 600; }
+    input[type="text"], input[type="password"], input[type="number"], select {
+      background: #060c14;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 9px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+
+    @media (max-width: 1024px) {
+      .workspace { grid-template-columns: 1fr; }
+      .arena-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <header class="navbar">
+    <div class="brand">
+      <div class="brand-logo">AR</div>
+      <div>
+        <div class="brand-name">ANY.RUN + REA SANDBOX</div>
+        <div class="brand-tag">Universal Multi-OS Detonation • Video Recording • AI Forensics</div>
+      </div>
+    </div>
+    <div class="nav-actions">
+      <button class="btn" onclick="openSettingsModal()">⚙️ Configurar IA (Local Ollama / API)</button>
+      <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">➕ Enviar Arquivos (Sem Limites)</button>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <!-- LEFT SIDEBAR: UPLOAD & SUBMISSIONS QUEUE -->
+    <aside class="left-sidebar">
+      <input type="file" id="file-input" multiple style="display:none" onchange="uploadFiles(this.files)" />
+      <div class="dropzone" id="dropzone" onclick="document.getElementById('file-input').click()">
+        <div style="font-size:26px; margin-bottom:6px;">📦</div>
+        <div class="dropzone-title">Arraste ou Clique para Detonar Arquivos</div>
+        <div class="dropzone-sub">
+          Sem limite de tamanho ou quantidade.<br>
+          Suporta <strong>Windows (.exe, .dll, .msi, .ps1)</strong>, <strong>Linux (.elf, .deb, .sh, .py)</strong>, <strong>Android (.apk)</strong>, <strong>macOS (.dmg, Mach-O)</strong>, <strong>Electron/JS</strong>, <strong>WASM</strong>, <strong>SQLite</strong>, <strong>PCAP</strong> e <strong>Documentos</strong>.
+        </div>
+      </div>
+
+      <div class="demo-bar">
+        <div class="section-label">Detonação Rápida de Teste (1-Clique)</div>
+        <button class="btn" onclick="submitDemo('suspicious_beacon_py')">🐍 Detonar Simulador C2 Beacon (.py)</button>
+        <button class="btn" onclick="submitDemo('linux_elf_binary')">🐧 Detonar Binário Nativo Linux (.elf)</button>
+        <button class="btn" onclick="submitDemo('installer_dropper')">🐚 Detonar Instalador Dropper (.sh)</button>
+      </div>
+
+      <div>
+        <div class="section-label">Histórico de Sessões & Detonações</div>
+        <div class="task-list" id="task-list"></div>
+      </div>
+    </aside>
+
+    <!-- RIGHT MAIN ARENA -->
+    <main class="main-arena" id="main-arena">
+      <div class="arena-grid">
+        <!-- VIDEO PLAYER PANEL -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">🎥 Gravação em Vídeo da Sessão de Instalação & Execução (X11 / Sandbox)</div>
+            <div id="video-download-slot"></div>
+          </div>
+          <div class="video-box" id="video-container">
+            <div style="color:var(--muted); text-align:center; padding:20px;">
+              Selecione uma submissão à esquerda ou envie um arquivo para assistir à gravação em vídeo (.mp4) da detonação.
+            </div>
+          </div>
+        </div>
+
+        <!-- ARTIFACT IDENTITY & VERDICT PANEL -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">🛡️ Veredito, Hashes Criptográficos & Telemetria REA</div>
+            <div id="export-buttons-slot" style="display:flex; gap:6px; flex-wrap:wrap;"></div>
+          </div>
+
+          <div class="score-dial">
+            <div class="score-number" id="det-score">--</div>
+            <div>
+              <div style="font-weight:800; font-size:15px;" id="det-verdict">Selecione uma análise</div>
+              <div style="font-size:12px; color:var(--muted); margin-top:3px;" id="det-stage">Aguardando seleção de artefato...</div>
+            </div>
+          </div>
+
+          <table class="meta-table">
+            <tr><td>Arquivo</td><td id="det-filename">-</td></tr>
+            <tr><td>SO Alvo Detectado</td><td id="det-os">-</td></tr>
+            <tr><td>Família / Formato</td><td id="det-family">-</td></tr>
+            <tr><td>Cabeçalho Magic</td><td class="mono" id="det-magic">-</td></tr>
+            <tr><td>Tamanho / Entropia</td><td id="det-entropy">-</td></tr>
+            <tr><td>MD5</td><td class="mono" id="det-md5">-</td></tr>
+            <tr><td>SHA-1</td><td class="mono" id="det-sha1">-</td></tr>
+            <tr><td>SHA-256</td><td class="mono" id="det-sha256">-</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- DETAILED ANALYSIS TABS -->
+      <div class="panel">
+        <div class="subtabs">
+          <div class="subtab active" onclick="switchArenaTab('ai', this)">🤖 Relatório Forense IA (Auto-Gerado)</div>
+          <div class="subtab" onclick="switchArenaTab('rea', this)">🔬 Evidências Estáticas REA (v6.7.0)</div>
+          <div class="subtab" onclick="switchArenaTab('dynamic', this)">⚡ Comportamento Dinâmico & Syscalls</div>
+          <div class="subtab" onclick="switchArenaTab('iocs', this)">🌐 IOCs, Capacidades API & MITRE ATT&CK</div>
+        </div>
+
+        <div id="arena-tab-ai" class="arena-pane">
+          <div class="report-box" id="ai-report-content">O relatório completo analisado por Inteligência Artificial aparecerá aqui assim que a detonação terminar.</div>
+        </div>
+
+        <div id="arena-tab-rea" class="arena-pane" style="display:none;">
+          <div class="report-box mono" id="rea-static-content">Nenhum dado estático carregado.</div>
+        </div>
+
+        <div id="arena-tab-dynamic" class="arena-pane" style="display:none;">
+          <div class="report-box mono" id="dynamic-trace-content">Nenhum log de execução dinâmica carregado.</div>
+        </div>
+
+        <div id="arena-tab-iocs" class="arena-pane" style="display:none;">
+          <div class="report-box mono" id="iocs-content">Nenhum IOC carregado.</div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- AI SETTINGS MODAL -->
+  <div class="modal-backdrop" id="settings-modal">
+    <div class="modal">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div style="font-size:16px; font-weight:800;">⚙️ Configuração do Motor de IA (Local ou API)</div>
+        <button class="btn" onclick="closeSettingsModal()">✕</button>
+      </div>
+      <div class="form-group">
+        <label>Provedor de Inteligência Artificial</label>
+        <select id="cfg-provider">
+          <option value="ollama">LLM Local via Ollama (Recomendado / Sem Custos)</option>
+          <option value="openai_compatible">API Externa Compatível com OpenAI (OpenAI / Groq / DeepSeek / OpenRouter / Gemini)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Nome do Modelo (ex: qwen3-hermes:latest, deepseek-v4-heretic:9b, gpt-4o)</label>
+        <input type="text" id="cfg-model" value="qwen3-hermes:latest" />
+      </div>
+      <div class="form-group">
+        <label>Endpoint Base URL (Ollama: http://127.0.0.1:11434 | OpenAI: https://api.openai.com/v1)</label>
+        <input type="text" id="cfg-url" value="http://127.0.0.1:11434" />
+      </div>
+      <div class="form-group">
+        <label>API Key (Opcional para Ollama local; obrigatória para APIs externas)</label>
+        <input type="password" id="cfg-key" placeholder="sk-..." />
+      </div>
+      <div class="form-group">
+        <label>Duração da Gravação de Vídeo por Detonação (Segundos)</label>
+        <input type="number" id="cfg-duration" value="11" min="5" max="120" />
+      </div>
+      <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:6px;">
+        <button class="btn" onclick="closeSettingsModal()">Cancelar</button>
+        <button class="btn btn-primary" onclick="saveSettings()">Salvar Configuração</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentTaskId = null;
+    let lastCompletedLoaded = null;
+
+    // Drag and Drop support
+    const dz = document.getElementById('dropzone');
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+    dz.addEventListener('drop', e => {
+      e.preventDefault();
+      dz.classList.remove('dragover');
+      if (e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files);
+    });
+
+    async function uploadFiles(fileList) {
+      if (!fileList || !fileList.length) return;
+      const fd = new FormData();
+      for (const f of fileList) fd.append('files', f);
+      const res = await fetch('/api/submit', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (data.tasks && data.tasks.length) {
+        currentTaskId = data.tasks[0].task_id;
+        lastCompletedLoaded = null;
+        loadSubmissions();
+      }
+    }
+
+    async function submitDemo(type) {
+      const res = await fetch('/api/submit-demo', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({type})
+      });
+      const data = await res.json();
+      if (data.task_id) {
+        currentTaskId = data.task_id;
+        lastCompletedLoaded = null;
+        loadSubmissions();
+      }
+    }
+
+    async function loadSubmissions() {
+      const res = await fetch('/api/submissions');
+      const data = await res.json();
+      const list = document.getElementById('task-list');
+
+      if (!currentTaskId && data.submissions.length) {
+        currentTaskId = data.submissions[0].task_id;
+      }
+
+      list.innerHTML = data.submissions.map(s => {
+        const vClass = s.verdict.startsWith('MALICIOUS') ? 'MALICIOUS' :
+                       s.verdict.startsWith('SUSPICIOUS') ? 'SUSPICIOUS' :
+                       s.verdict.startsWith('CLEAN') ? 'CLEAN' : 'ANALYZING';
+        return `
+          <div class="task-card ${s.task_id === currentTaskId ? 'active' : ''}" onclick="selectTask('${s.task_id}')">
+            <div class="task-top">
+              <div class="task-name">${s.filename}</div>
+              <span class="verdict-pill verdict-${vClass}">${s.verdict}</span>
+            </div>
+            <div style="font-size:11.5px; color:var(--muted);">
+              ${s.target_os || 'Detectando SO...'} • Score: <strong>${s.threat_score}/100</strong>
+            </div>
+            <div style="font-size:11px; color:var(--accent); margin-top:3px;">${s.stage} (${s.progress}%)</div>
+            <div class="progress-bar"><div class="progress-fill" style="width:${s.progress}%"></div></div>
+          </div>
+        `;
+      }).join('');
+
+      if (currentTaskId) {
+        loadTaskDetails(currentTaskId);
+      }
+    }
+
+    function selectTask(taskId) {
+      currentTaskId = taskId;
+      lastCompletedLoaded = null;
+      loadSubmissions();
+    }
+
+    async function loadTaskDetails(taskId) {
+      const res = await fetch(`/api/submission/${taskId}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const sub = data.submission;
+      const rep = data.report;
+
+      document.getElementById('det-score').textContent = sub.threat_score + '/100';
+      document.getElementById('det-verdict').textContent = sub.verdict;
+      document.getElementById('det-stage').textContent = sub.stage;
+      document.getElementById('det-filename').textContent = sub.filename;
+      document.getElementById('det-os').textContent = sub.target_os || '-';
+      document.getElementById('det-family').textContent = sub.artifact_family || '-';
+
+      if (!rep) return;
+
+      // Avoid reloading the <video> tag repeatedly once completed
+      if (lastCompletedLoaded === taskId && sub.status === 'completed') return;
+      if (sub.status === 'completed') lastCompletedLoaded = taskId;
+
+      document.getElementById('det-magic').textContent = rep.file_meta.magic_description;
+      document.getElementById('det-entropy').textContent = `${rep.hashes.size_bytes} bytes | Entropia: ${rep.hashes.entropy} bits/byte`;
+      document.getElementById('det-md5').textContent = rep.hashes.md5;
+      document.getElementById('det-sha1').textContent = rep.hashes.sha1;
+      document.getElementById('det-sha256').textContent = rep.hashes.sha256;
+
+      // Export & Download Buttons
+      document.getElementById('export-buttons-slot').innerHTML = `
+        ${sub.has_pdf ? `<a class="btn btn-primary" href="/api/submission/${taskId}/pdf">📄 Baixar PDF Forense</a>` : ''}
+        <a class="btn" href="/api/submission/${taskId}/markdown">📝 Baixar Relatório (.md)</a>
+        <a class="btn" href="/api/submission/${taskId}/json">📦 Evidence JSON (REA)</a>
+      `;
+
+      if (sub.has_video) {
+        document.getElementById('video-download-slot').innerHTML = `
+          <a class="btn btn-success" href="/api/submission/${taskId}/video?download=1">⬇ Salvar Vídeo (.mp4)</a>
+        `;
+        document.getElementById('video-container').innerHTML = `
+          <video controls autoplay muted loop playsinline poster="/api/submission/${taskId}/screenshot">
+            <source src="/api/submission/${taskId}/video" type="video/mp4" />
+          </video>
+        `;
+      }
+
+      document.getElementById('ai-report-content').textContent =
+        (rep.ai_report && rep.ai_report.markdown) ? rep.ai_report.markdown : 'Gerando relatório IA...';
+
+      document.getElementById('rea-static-content').textContent =
+        JSON.stringify(rep.rea_static, null, 2);
+
+      document.getElementById('dynamic-trace-content').textContent =
+        "=== SAÍDA DO CONSOLE DA SANDBOX ===\n" + (rep.dynamic.console_output || "") +
+        "\n\n=== SYSCALLS CAPTURADAS (STRACE / REA CAPTURE-PROCESS) ===\n" +
+        (rep.dynamic.syscalls_observed || []).join("\n");
+
+      document.getElementById('iocs-content').textContent =
+        JSON.stringify({ scoring: rep.scoring, iocs: rep.iocs }, null, 2);
+    }
+
+    function switchArenaTab(tab, el) {
+      document.querySelectorAll('.subtab').forEach(t => t.classList.remove('active'));
+      if (el) el.classList.add('active');
+      ['ai', 'rea', 'dynamic', 'iocs'].forEach(k => {
+        document.getElementById('arena-tab-' + k).style.display = (k === tab) ? 'block' : 'none';
+      });
+    }
+
+    async function openSettingsModal() {
+      const res = await fetch('/api/settings');
+      const data = await res.json();
+      const s = data.settings;
+      document.getElementById('cfg-provider').value = s.ai_provider || 'ollama';
+      document.getElementById('cfg-model').value = s.ai_model || 'qwen3-hermes:latest';
+      document.getElementById('cfg-url').value = s.ai_base_url || 'http://127.0.0.1:11434';
+      document.getElementById('cfg-duration').value = s.sandbox_duration_sec || '11';
+      document.getElementById('settings-modal').classList.add('open');
+    }
+
+    function closeSettingsModal() {
+      document.getElementById('settings-modal').classList.remove('open');
+    }
+
+    async function saveSettings() {
+      const payload = {
+        ai_provider: document.getElementById('cfg-provider').value,
+        ai_model: document.getElementById('cfg-model').value,
+        ai_base_url: document.getElementById('cfg-url').value,
+        sandbox_duration_sec: document.getElementById('cfg-duration').value
+      };
+      const k = document.getElementById('cfg-key').value.trim();
+      if (k) payload.ai_api_key = k;
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+      });
+      closeSettingsModal();
+    }
+
+    loadSubmissions();
+    setInterval(loadSubmissions, 4000);
+  </script>
+</body>
+</html>
