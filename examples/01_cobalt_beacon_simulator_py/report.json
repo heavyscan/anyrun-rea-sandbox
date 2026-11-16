@@ -29,14 +29,48 @@
     "registry_keys": [
       "HKCU\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run\\\\Updater"
     ],
+    "file_paths": [
+      "/etc/passwd",
+      "/usr/bin/env"
+    ],
     "suspicious_capabilities": [
       "/etc/passwd"
+    ],
+    "capability_details": [
+      {
+        "name": "/etc/passwd",
+        "description": "Enumeração de contas de usuários locais do sistema POSIX."
+      }
     ],
     "notable_strings": [
       "import os, sys, time, socket, hashlib",
       "C2_URL = \"http://198.51.100.200:8443/stage2/beacon.bin\"",
-      "print(\"[*] Checking /etc/passwd and local environment variables...\")"
-    ]
+      "REG_PERSIST = \"HKCU\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run\\\\Updater\"",
+      "print(\"[*] Starting Stage-1 Beacon Simulator...\")",
+      "print(\"[*] Checking /etc/passwd and local environment variables...\")",
+      "#!/usr/bin/env python3",
+      "# Simulated C2 Beacon & Discovery Sample for ANY.RUN REA Sandbox Testing",
+      "print(\"[*] Checking system identity: Linux sandbox-vm-01 6.12.0-generic x86_64\")",
+      "print(\"[*] Probing target C2 endpoint:\", C2_URL)",
+      "print(\" -> Sandbox Host: anyrun-sandbox-node01 (Isolated Network Namespace)\")",
+      "time.sleep(1)",
+      "print(\"[+] Simulation complete (Safe Canary Sample).\")"
+    ],
+    "source_preview": [
+      "001 | #!/usr/bin/env python3",
+      "002 | # Simulated C2 Beacon & Discovery Sample for ANY.RUN REA Sandbox Testing",
+      "003 | import os, sys, time, socket, hashlib",
+      "004 | C2_URL = \"http://198.51.100.200:8443/stage2/beacon.bin\"",
+      "005 | REG_PERSIST = \"HKCU\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run\\\\Updater\"",
+      "006 | print(\"[*] Starting Stage-1 Beacon Simulator...\")",
+      "007 | print(\"[*] Checking system identity: Linux sandbox-vm-01 6.12.0-generic x86_64\")",
+      "008 | print(\"[*] Probing target C2 endpoint:\", C2_URL)",
+      "009 | print(\"[*] Checking /etc/passwd and local environment variables...\")",
+      "010 | print(\" -> Sandbox Host: anyrun-sandbox-node01 (Isolated Network Namespace)\")",
+      "011 | time.sleep(1)",
+      "012 | print(\"[+] Simulation complete (Safe Canary Sample).\")"
+    ],
+    "hexdump_preview": "00000000  23 21 2f 75 73 72 2f 62 69 6e 2f 65 6e 76 20 70   |#!/usr/bin/env p|\n00000010  79 74 68 6f 6e 33 0a 23 20 53 69 6d 75 6c 61 74   |ython3.# Simulat|\n00000020  65 64 20 43 32 20 42 65 61 63 6f 6e 20 26 20 44   |ed C2 Beacon & D|\n00000030  69 73 63 6f 76 65 72 79 20 53 61 6d 70 6c 65 20   |iscovery Sample |\n00000040  66 6f 72 20 41 4e 59 2e 52 55 4e 20 52 45 41 20   |for ANY.RUN REA |\n00000050  53 61 6e 64 62 6f 78 20 54 65 73 74 69 6e 67 0a   |Sandbox Testing.|\n00000060  69 6d 70 6f 72 74 20 6f 73 2c 20 73 79 73 2c 20   |import os, sys, |\n00000070  74 69 6d 65 2c 20 73 6f 63 6b 65 74 2c 20 68 61   |time, socket, ha|\n00000080  73 68 6c 69 62 0a 43 32 5f 55 52 4c 20 3d 20 22   |shlib.C2_URL = \"|\n00000090  68 74 74 70 3a 2f 2f 31 39 38 2e 35 31 2e 31 30   |http://198.51.10|\n000000a0  30 2e 32 30 30 3a 38 34 34 33 2f 73 74 61 67 65   |0.200:8443/stage|\n000000b0  32 2f 62 65 61 63 6f 6e 2e 62 69 6e 22 0a 52 45   |2/beacon.bin\".RE|\n000000c0  47 5f 50 45 52 53 49 53 54 20 3d 20 22 48 4b 43   |G_PERSIST = \"HKC|\n000000d0  55 5c 5c 53 6f 66 74 77 61 72 65 5c 5c 4d 69 63   |U\\\\Software\\\\Mic|\n000000e0  72 6f 73 6f 66 74 5c 5c 57 69 6e 64 6f 77 73 5c   |rosoft\\\\Windows\\|\n000000f0  5c 43 75 72 72 65 6e 74 56 65 72 73 69 6f 6e 5c   |\\CurrentVersion\\|"
   },
   "rea_static": {
     "rea_version": "6.7.0",

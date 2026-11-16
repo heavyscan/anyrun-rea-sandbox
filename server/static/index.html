@@ -107,6 +107,27 @@
       border-color: var(--malicious);
       color: #f87171;
     }
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.32);
+      border-color: #f87171;
+      color: #fff;
+    }
+    .btn-icon-del {
+      background: rgba(239, 68, 68, 0.14);
+      border: 1px solid rgba(239, 68, 68, 0.45);
+      color: #f87171;
+      border-radius: 6px;
+      padding: 2px 7px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      line-height: 1.3;
+    }
+    .btn-icon-del:hover {
+      background: var(--malicious);
+      color: #fff;
+      border-color: var(--malicious);
+    }
     .btn-success {
       background: rgba(16, 185, 129, 0.18);
       border-color: var(--clean);
@@ -446,7 +467,10 @@
       </div>
 
       <div>
-        <div class="section-label">Histórico de Sessões & Detonações</div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <div class="section-label" style="margin-bottom:0;">Histórico de Sessões & Detonações</div>
+          <button class="btn btn-danger" style="padding:4px 9px; font-size:11px;" onclick="clearAllSubmissions()" title="Excluir todas as análises e liberar espaço em disco">🧹 Limpar Tudo</button>
+        </div>
         <div class="task-list" id="task-list"></div>
       </div>
     </aside>
@@ -668,19 +692,32 @@
       const data = await res.json();
       const list = document.getElementById('task-list');
 
-      if (!currentTaskId && data.submissions.length) {
+      if (!data.submissions.length) {
+        currentTaskId = null;
+        lastCompletedLoaded = null;
+        list.innerHTML = `<div style="color:var(--muted); font-size:12px; text-align:center; padding:18px 8px; border:1px dashed var(--border); border-radius:9px;">Nenhuma análise armazenada no servidor.</div>`;
+        resetArenaView();
+        return;
+      }
+
+      if (!currentTaskId || !data.submissions.some(s => s.task_id === currentTaskId)) {
         currentTaskId = data.submissions[0].task_id;
+        lastCompletedLoaded = null;
       }
 
       list.innerHTML = data.submissions.map(s => {
         const vClass = s.verdict.startsWith('MALICIOUS') ? 'MALICIOUS' :
                        s.verdict.startsWith('SUSPICIOUS') ? 'SUSPICIOUS' :
                        s.verdict.startsWith('CLEAN') ? 'CLEAN' : 'ANALYZING';
+        const safeFn = (s.filename || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
         return `
           <div class="task-card ${s.task_id === currentTaskId ? 'active' : ''}" onclick="selectTask('${s.task_id}')">
             <div class="task-top">
               <div class="task-name">${s.filename}</div>
-              <span class="verdict-pill verdict-${vClass}">${s.verdict}</span>
+              <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+                <span class="verdict-pill verdict-${vClass}">${s.verdict}</span>
+                <button class="btn-icon-del" title="Excluir análise e apagar todos os arquivos do servidor" onclick="event.stopPropagation(); deleteSubmission('${s.task_id}', '${safeFn}')">🗑️</button>
+              </div>
             </div>
             <div style="font-size:11.5px; color:var(--muted);">
               ${s.target_os || 'Detectando SO...'} • Score: <strong>${s.threat_score}/100</strong>
@@ -693,6 +730,61 @@
 
       if (currentTaskId) {
         loadTaskDetails(currentTaskId);
+      }
+    }
+
+    function resetArenaView() {
+      document.getElementById('det-score').textContent = '--';
+      document.getElementById('det-verdict').textContent = 'Selecione uma análise';
+      document.getElementById('det-stage').textContent = 'Aguardando seleção de artefato...';
+      document.getElementById('det-filename').textContent = '-';
+      document.getElementById('det-os').textContent = '-';
+      document.getElementById('det-family').textContent = '-';
+      document.getElementById('det-magic').textContent = '-';
+      document.getElementById('det-entropy').textContent = '-';
+      document.getElementById('det-md5').textContent = '-';
+      document.getElementById('det-sha1').textContent = '-';
+      document.getElementById('det-sha256').textContent = '-';
+      document.getElementById('export-buttons-slot').innerHTML = '';
+      document.getElementById('video-download-slot').innerHTML = '';
+      document.getElementById('video-container').innerHTML = `
+        <div style="color:var(--muted); text-align:center; padding:20px;">
+          Selecione uma submissão à esquerda ou envie um arquivo para assistir à gravação em vídeo (.mp4) da detonação.
+        </div>
+      `;
+      document.getElementById('ai-report-content').textContent = 'O relatório completo analisado por Inteligência Artificial aparecerá aqui assim que a detonação terminar.';
+      document.getElementById('rea-static-content').textContent = 'Nenhum dado estático carregado.';
+      document.getElementById('dynamic-trace-content').textContent = 'Nenhum log de execução dinâmica carregado.';
+      document.getElementById('iocs-content').textContent = 'Nenhum IOC carregado.';
+    }
+
+    async function deleteSubmission(taskId, filename) {
+      if (!confirm(`Tem certeza que deseja excluir a análise "${filename || taskId}"?\n\nTodos os arquivos desta análise (artefato enviado, vídeo MP4, capturas, logs e relatório PDF) serão removidos permanentemente do servidor.`)) {
+        return;
+      }
+      const res = await fetch(`/api/submission/${encodeURIComponent(taskId)}`, { method: 'DELETE' });
+      if (res.ok) {
+        if (currentTaskId === taskId) {
+          currentTaskId = null;
+          lastCompletedLoaded = null;
+        }
+        await loadSubmissions();
+      } else {
+        alert('Erro ao excluir a análise.');
+      }
+    }
+
+    async function clearAllSubmissions() {
+      if (!confirm('Tem certeza que deseja excluir TODAS as análises do histórico?\n\nIsso apagará permanentemente todos os vídeos, relatórios PDF, JSONs e artefatos armazenados no servidor.')) {
+        return;
+      }
+      const res = await fetch('/api/submissions', { method: 'DELETE' });
+      if (res.ok) {
+        currentTaskId = null;
+        lastCompletedLoaded = null;
+        await loadSubmissions();
+      } else {
+        alert('Erro ao limpar histórico de análises.');
       }
     }
 
@@ -716,7 +808,13 @@
       document.getElementById('det-os').textContent = sub.target_os || '-';
       document.getElementById('det-family').textContent = sub.artifact_family || '-';
 
-      if (!rep) return;
+      const safeSubFn = (sub.filename || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+      if (!rep) {
+        document.getElementById('export-buttons-slot').innerHTML = `
+          <button class="btn btn-danger" onclick="deleteSubmission('${taskId}', '${safeSubFn}')">🗑️ Excluir Análise</button>
+        `;
+        return;
+      }
 
       // Avoid reloading the <video> tag repeatedly once completed
       if (lastCompletedLoaded === taskId && sub.status === 'completed') return;
@@ -728,11 +826,12 @@
       document.getElementById('det-sha1').textContent = rep.hashes.sha1;
       document.getElementById('det-sha256').textContent = rep.hashes.sha256;
 
-      // Export & Download Buttons
+      // Export, Download & Delete Buttons
       document.getElementById('export-buttons-slot').innerHTML = `
         ${sub.has_pdf ? `<a class="btn btn-primary" href="/api/submission/${taskId}/pdf">📄 Baixar PDF Forense</a>` : ''}
         <a class="btn" href="/api/submission/${taskId}/markdown">📝 Baixar Relatório (.md)</a>
         <a class="btn" href="/api/submission/${taskId}/json">📦 Evidence JSON (REA)</a>
+        <button class="btn btn-danger" onclick="deleteSubmission('${taskId}', '${safeSubFn}')">🗑️ Excluir Análise</button>
       `;
 
       if (sub.has_video) {

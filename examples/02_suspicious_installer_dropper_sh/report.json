@@ -27,11 +27,32 @@
       "10.240.0.10"
     ],
     "registry_keys": [],
+    "file_paths": [
+      "/usr/bin/env"
+    ],
     "suspicious_capabilities": [],
+    "capability_details": [],
     "notable_strings": [
+      "echo \"[*] Dropper Installer v2.4 initializing...\"",
       "echo \"[*] Target C2: https://c2-telemetry.evil-simulation.example/gate.php\"",
-      "echo \"[+] Installer execution finished.\""
-    ]
+      "echo \"[*] Checking privilege level: uid=1000(sandbox-operator) gid=1000(sandbox-operator)\"",
+      "echo \"[*] Enumerating network interfaces: eth0 UP 10.240.0.10/24\"",
+      "echo \"[*] Attempting simulated persistence check in ~/.config/autostart...\"",
+      "echo \"[+] Installer execution finished.\"",
+      "#!/usr/bin/env bash",
+      "sleep 1"
+    ],
+    "source_preview": [
+      "001 | #!/usr/bin/env bash",
+      "002 | echo \"[*] Dropper Installer v2.4 initializing...\"",
+      "003 | echo \"[*] Target C2: https://c2-telemetry.evil-simulation.example/gate.php\"",
+      "004 | echo \"[*] Checking privilege level: uid=1000(sandbox-operator) gid=1000(sandbox-operator)\"",
+      "005 | echo \"[*] Enumerating network interfaces: eth0 UP 10.240.0.10/24\"",
+      "006 | sleep 1",
+      "007 | echo \"[*] Attempting simulated persistence check in ~/.config/autostart...\"",
+      "008 | echo \"[+] Installer execution finished.\""
+    ],
+    "hexdump_preview": "00000000  23 21 2f 75 73 72 2f 62 69 6e 2f 65 6e 76 20 62   |#!/usr/bin/env b|\n00000010  61 73 68 0a 65 63 68 6f 20 22 5b 2a 5d 20 44 72   |ash.echo \"[*] Dr|\n00000020  6f 70 70 65 72 20 49 6e 73 74 61 6c 6c 65 72 20   |opper Installer |\n00000030  76 32 2e 34 20 69 6e 69 74 69 61 6c 69 7a 69 6e   |v2.4 initializin|\n00000040  67 2e 2e 2e 22 0a 65 63 68 6f 20 22 5b 2a 5d 20   |g...\".echo \"[*] |\n00000050  54 61 72 67 65 74 20 43 32 3a 20 68 74 74 70 73   |Target C2: https|\n00000060  3a 2f 2f 63 32 2d 74 65 6c 65 6d 65 74 72 79 2e   |://c2-telemetry.|\n00000070  65 76 69 6c 2d 73 69 6d 75 6c 61 74 69 6f 6e 2e   |evil-simulation.|\n00000080  65 78 61 6d 70 6c 65 2f 67 61 74 65 2e 70 68 70   |example/gate.php|\n00000090  22 0a 65 63 68 6f 20 22 5b 2a 5d 20 43 68 65 63   |\".echo \"[*] Chec|\n000000a0  6b 69 6e 67 20 70 72 69 76 69 6c 65 67 65 20 6c   |king privilege l|\n000000b0  65 76 65 6c 3a 20 75 69 64 3d 31 30 30 30 28 73   |evel: uid=1000(s|\n000000c0  61 6e 64 62 6f 78 2d 6f 70 65 72 61 74 6f 72 29   |andbox-operator)|\n000000d0  20 67 69 64 3d 31 30 30 30 28 73 61 6e 64 62 6f   | gid=1000(sandbo|\n000000e0  78 2d 6f 70 65 72 61 74 6f 72 29 22 0a 65 63 68   |x-operator)\".ech|\n000000f0  6f 20 22 5b 2a 5d 20 45 6e 75 6d 65 72 61 74 69   |o \"[*] Enumerati|"
   },
   "rea_static": {
     "rea_version": "6.7.0",

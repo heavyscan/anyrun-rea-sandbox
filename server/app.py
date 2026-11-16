@@ -20,7 +20,7 @@ from flask import Flask, request, jsonify, send_from_directory, send_file
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BASE_DIR)
 
-from engine.detonator import run_complete_submission, now_iso
+from engine.detonator import run_complete_submission, generate_pdf_report, now_iso
 
 DB_PATH = os.path.join(BASE_DIR, "data", "anyrun_rea.db")
 SUBMISSIONS_DIR = os.path.join(BASE_DIR, "data", "submissions")
@@ -383,6 +383,92 @@ def api_get_submission(task_id):
     return jsonify({"submission": meta, "report": report_data})
 
 
+@app.route("/api/submission/<task_id>", methods=["DELETE"])
+@app.route("/api/submission/<task_id>/delete", methods=["POST", "DELETE"])
+def api_delete_submission(task_id):
+    """
+    Permanently deletes a single submission from the SQLite database AND removes its entire
+    directory (`work_dir` / `data/submissions/<task_id>`) from disk (uploaded artifact, video,
+    screenshots, logs, JSON, Markdown, and PDF report).
+    """
+    safe_tid = os.path.basename(str(task_id).strip())
+    if not safe_tid or safe_tid in (".", ".."):
+        return jsonify({"error": "ID de submissão inválido"}), 400
+
+    dirs_to_remove = set()
+    sub_base_real = os.path.realpath(SUBMISSIONS_DIR)
+    candidate_dir = os.path.realpath(os.path.join(SUBMISSIONS_DIR, safe_tid))
+    if candidate_dir.startswith(sub_base_real + os.sep):
+        dirs_to_remove.add(candidate_dir)
+
+    with db_lock:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT work_dir FROM submissions WHERE task_id = ?", (safe_tid,))
+        row = cur.fetchone()
+        if row and row["work_dir"]:
+            db_dir = os.path.realpath(row["work_dir"])
+            if db_dir.startswith(sub_base_real + os.sep):
+                dirs_to_remove.add(db_dir)
+        cur.execute("DELETE FROM submissions WHERE task_id = ?", (safe_tid,))
+        deleted_rows = cur.rowcount
+        conn.commit()
+        conn.close()
+
+    removed_files_count = 0
+    for dpath in dirs_to_remove:
+        if os.path.isdir(dpath):
+            try:
+                for _, _, files in os.walk(dpath):
+                    removed_files_count += len(files)
+                shutil.rmtree(dpath, ignore_errors=True)
+            except Exception as e:
+                return jsonify({"error": f"Falha ao remover diretório: {e}"}), 500
+
+    return jsonify({
+        "ok": True,
+        "deleted_task_id": safe_tid,
+        "deleted_db_record": deleted_rows > 0,
+        "removed_files_count": removed_files_count
+    })
+
+
+@app.route("/api/submissions", methods=["DELETE"])
+@app.route("/api/submissions/clear", methods=["POST", "DELETE"])
+def api_clear_all_submissions():
+    """
+    Permanently deletes ALL submissions from the database and removes all submission directories
+    under `data/submissions/`, freeing 100% of disk space occupied by previous analyses.
+    """
+    sub_base_real = os.path.realpath(SUBMISSIONS_DIR)
+    removed_dirs = 0
+    removed_files = 0
+
+    with db_lock:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM submissions")
+        deleted_rows = cur.rowcount
+        conn.commit()
+        conn.close()
+
+    if os.path.isdir(sub_base_real):
+        for entry in os.listdir(sub_base_real):
+            full_p = os.path.realpath(os.path.join(sub_base_real, entry))
+            if full_p.startswith(sub_base_real + os.sep) and os.path.isdir(full_p):
+                for _, _, files in os.walk(full_p):
+                    removed_files += len(files)
+                shutil.rmtree(full_p, ignore_errors=True)
+                removed_dirs += 1
+
+    return jsonify({
+        "ok": True,
+        "deleted_db_records": deleted_rows,
+        "removed_directories": removed_dirs,
+        "removed_files": removed_files
+    })
+
+
 @app.route("/api/submission/<task_id>/video")
 def api_get_video(task_id):
     video_path = os.path.join(SUBMISSIONS_DIR, task_id, "session_recording.mp4")
@@ -401,10 +487,19 @@ def api_get_screenshot(task_id):
 
 @app.route("/api/submission/<task_id>/pdf")
 def api_get_pdf(task_id):
-    pdf_path = os.path.join(SUBMISSIONS_DIR, task_id, "forensic_report.pdf")
+    work_dir = os.path.join(SUBMISSIONS_DIR, task_id)
+    pdf_path = os.path.join(work_dir, "forensic_report.pdf")
+    json_path = os.path.join(work_dir, "report.json")
+    if (request.args.get("refresh") == "1" or not os.path.isfile(pdf_path)) and os.path.isfile(json_path):
+        try:
+            with open(json_path, "r") as rf:
+                telemetry = json.load(rf)
+            generate_pdf_report(telemetry, pdf_path)
+        except Exception:
+            pass
     if not os.path.isfile(pdf_path):
         return jsonify({"error": "PDF não disponível"}), 404
-    return send_file(pdf_path, mimetype="application/pdf", as_attachment=True, download_name=f"{task_id}_forensic_report.pdf")
+    return send_file(pdf_path, mimetype="application/pdf", as_attachment=True, download_name=f"{task_id}_forensic_report.pdf", max_age=0)
 
 
 @app.route("/api/submission/<task_id>/markdown")
