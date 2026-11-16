@@ -1,54 +1,47 @@
-# **Relatório Técnico Forense – Análise de Arquivo PDF (ANY.RUN + REA)**  
-**Data:** 2025-04-05  
-**Arquivo Analisado:** `relatorio_teste_mobile.pdf`  
-**Plataforma:** ANY.RUN + REA (Reverse Engineer Anything)  
-**Nível de Análise:** Estática e Dinâmica (Document Forensics)  
+# Relatório Técnico Forense — `relatorio_teste_mobile.pdf`
 
----
+## 1. Resumo Executivo e Veredito
+O artefato **`relatorio_teste_mobile.pdf`** (família *Document / Macro Carrier*, voltado para **Document / Office Suite**) foi submetido ao pipeline completo de engenharia reversa estática (**REA Engine v6.7.0**) e detonação comportamental dinâmica em ambiente isolado.
 
-## 🔍 1. Resumo Executivo e Veredito
+- **Veredito Final**: **CLEAN / BENIGN** (Threat Score: **10/100**)
+- **Assinatura Mágica (`file`)**: `PDF document, version 1.4, 2 page(s)`
+- **MIME Type**: `application/pdf`
+- **Tamanho Exato**: `4,353 bytes (4.25 KB)`
+- **Hash SHA-256**: `f217a2df4e7b17c00a9b5691eccf480128420bd59c7b883d7a6bec134a64e490`
 
-### **Veredito Final:**  
-✅ **CLEAN / BENIGN** – O arquivo é classificado como **inofensivo** e **não representa ameaça**.
+### Justificativa Técnica do Veredito
+- Nenhuma assinatura comportamental destrutiva, injeção de memória ou comunicação C2 externa foi observada durante a detonação.
+- **URLs Identificadas para Validação Manual (0)**: `Nenhuma URL externa detectada`
+- **Endereços IP Identificados para Validação Manual (0)**: `Nenhum endereço IP externo detectado`
+- **Chaves de Registro Identificadas (0)**: `Nenhuma chave de registro detectada`
 
-### **Score de Amostra de Risco (Threat Score):**  
-📊 **10/100** (Mínimo)  
-→ Indica ausência de comportamentos maliciosos críticos, com base em evidências comportamentais e técnicas.
+## 2. Análise Estática Profunda (REA Engine)
+- **Entropia de Shannon**: `6.2152 bits/byte` — Moderada a alta (típica de executáveis compilados padrão com seções de código e recursos otimizados).
+- **Suspeita de Packer / Criptografia**: `NÃO (Estrutura aberta/padrão)`
+- **Workflow REA Acionado**: `document-forensics`
+- **Ferramentas Executadas**: `rea:static-inspector`
 
-### **Justificativa:**  
-- O arquivo é um documento PDF padrão, com estrutura de arquivo típica de documentos oficiais ou de uso comum.  
-- Não foram observadas atividades de execução de código malicioso, tentativas de comunicação com redes externas, manipulação de sistema, ou uso de APIs de evasão.  
-- A detonação dinâmica não revelou nenhuma atividade suspeita, e todas as syscalls foram compatíveis com o comportamento esperado de um **processo de leitura de arquivos de sistema** (como o `file(1)`).  
-- A presença de strings como `/Root 7 0 R` é considerada **normal** em arquivos de configuração ou de sistema, e não indica atividade maliciosa.
+### Capacidades de Sistema e Primitivas Identificadas
+- Nenhuma primitiva de API maliciosa ou destrutiva isolada.
 
-> ⚠️ **Observação:** Embora o arquivo tenha uma estrutura de sistema (como acesso a bibliotecas do Linux), **isso não implica ameaça**. O acesso a bibliotecas como `libmagic.so.1` é parte do funcionamento normal do utilitário `file`, usado para identificar tipos de arquivos. A ausência de tentativas de execução de comandos maliciosos ou de escrita em arquivos críticos confirma a inofensividade.
+### Strings e Comandos Notáveis Extraídos
+- `/Root 7 0 R`
 
----
+## 3. Comportamento na Detonação Dinâmica e Sessão Visual
+- **Vídeo da Detonação Gravado**: `session_recording.mp4` (`906,387 bytes (885.14 KB)`)
+- **Captura de Tela (Keyframe)**: `session_keyframe.png`
+- **Conexões de Rede Externas (C2) — `0 URLs` e `0 IPs externos`**:
+  - **URLs**: `Nenhuma URL externa detectada`
+  - **IPs**: `Nenhum endereço IP externo detectado`
+- **Chaves de Registro Monitoradas (`0 chaves`)**: `Nenhuma chave de registro detectada`
 
-## 🔍 2. Análise Estática Profunda (REA Engine)
+## 4. Mapeamento Tático MITRE ATT&CK
 
-### **Informações de Arquivo:**
-| Campo | Valor |
-|------|------|
-| Nome do arquivo | `relatorio_teste_mobile.pdf` |
-| Extensão | `.pdf` |
-| Tipo MIME | `application/pdf` |
-| Versão do PDF | 1.4 |
-| Número de páginas | 2 |
-| Formato de arquivo | PDF (documento) |
-| Sistema alvo | Document / Office Suite |
-| Família de artefatos | Document / Macro Carrier |
+| ID Técnica | Tática (Tactic) | Nome da Técnica |
+|---|---|---|
+| `N/A` | Baseline Execution | Nenhuma técnica adversária hostil acionada |
 
-### **Propriedades Técnicas:**
-- **Tamanho (bytes):** 4.353  
-- **Hashes:**  
-  - MD5: `276ce548c9659a9e97f041faf76b4057`  
-  - SHA-1: `cc9b0e930820a14ec78f9bc893d9b4a59efc063e`  
-  - SHA-256: `f217a2df4e7b17c00a9b5691eccf480128420bd59c7b883d7a6bec134a64e490`  
-- **Entropia:** **6.2152**  
-  → Valor dentro do intervalo normal para arquivos PDF (6.0–7.0).  
-  → Confirma presença de conteúdo estruturado, mas **não indica compactação, criptografia ou payload oculto**.
-
-### **Análise de Strings (Notable Strings):**
-- `"/Root 7 0 R"`  
-  → Esta string é **
+## 5. Recomendações de Resposta a Incidentes e Governança Zero Trust
+1. **Validação de Homologação (Application Allowlisting)**: Caso `relatorio_teste_mobile.pdf` seja uma ferramenta ou script administrativo legítimo da equipe de TI/Suporte, cadastre uma política de permissão baseada exclusivamente no hash **SHA-256 (`f217a2df4e7b17c00a9b5691eccf480128420bd59c7b883d7a6bec134a64e490`)** no **ThreatLocker Zero Trust Control Plane** para impedir adulterações futuras.
+2. **Monitoramento de Sub-Processos (EDR / Sysmon)**: Audite eventos de criação de processos filhos (Event ID 4688 / Sysmon Event ID 1) quando interpretadores (`powershell.exe`, `cmd.exe`, `/bin/bash`) forem invocados com parâmetros de elevação (`-Verb RunAs`) ou bypass (`-ExecutionPolicy Bypass`).
+3. **Bloqueio Preventivo (Se Não Reconhecido)**: Caso o artefato não pertença ao catálogo oficial de automação da organização, aplique bloqueio imediato do hash SHA-256 e utilize a regra YARA anexa neste relatório para varredura retroativa nos endpoints.

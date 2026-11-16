@@ -794,12 +794,26 @@ def compute_threat_score_and_mitre(hashes, file_meta, iocs, rea_static, dynamic_
 
     if iocs.get("urls") or iocs.get("ips"):
         score += 15
-        reasons.append(f"Indicadores de rede embutidos: {len(iocs.get('urls', []))} URLs e {len(iocs.get('ips', []))} endereços IP.")
+        urls_list = iocs.get("urls", [])
+        ips_list = iocs.get("ips", [])
+        net_details = []
+        if urls_list:
+            net_details.append(f"URLs: {', '.join(urls_list[:10])}")
+        if ips_list:
+            net_details.append(f"IPs: {', '.join(ips_list[:15])}")
+        reasons.append(
+            f"Indicadores de rede embutidos: {len(urls_list)} URLs e {len(ips_list)} endereços IP "
+            f"({' | '.join(net_details)})."
+        )
         mitre.append({"id": "T1071", "tactic": "Command and Control", "name": "Application Layer Protocol"})
 
     if iocs.get("registry_keys"):
         score += 20
-        reasons.append("Chaves de Registro do Windows associadas a persistência ou configuração de sistema.")
+        regs_list = iocs.get("registry_keys", [])
+        reasons.append(
+            f"Chaves de Registro do Windows associadas a persistência ou configuração de sistema ({len(regs_list)}): "
+            f"{', '.join(regs_list[:8])}."
+        )
         mitre.append({"id": "T1547.001", "tactic": "Persistence", "name": "Registry Run Keys / Startup Folder"})
 
     score = min(100, score)
@@ -895,6 +909,13 @@ def build_comprehensive_fallback_markdown(full_telemetry):
 
     notable_md = "\n".join(f"- `{s[:120]}`" for s in iocs.get("notable_strings", [])[:20]) or "- Nenhuma string anômala extraída."
 
+    urls_list = iocs.get("urls", [])
+    ips_list = iocs.get("ips", [])
+    regs_list = iocs.get("registry_keys", [])
+    urls_inline = ", ".join(f"`{u}`" for u in urls_list) if urls_list else "`Nenhuma URL externa detectada`"
+    ips_inline = ", ".join(f"`{ip}`" for ip in ips_list) if ips_list else "`Nenhum endereço IP externo detectado`"
+    regs_inline = ", ".join(f"`{rk}`" for rk in regs_list) if regs_list else "`Nenhuma chave de registro detectada`"
+
     return (
         f"# Relatório Técnico Forense — `{fm['filename']}`\n\n"
         f"## 1. Resumo Executivo e Veredito\n"
@@ -906,7 +927,10 @@ def build_comprehensive_fallback_markdown(full_telemetry):
         f"- **Hash SHA-256**: `{hs['sha256']}`\n\n"
         f"### Justificativa Técnica do Veredito\n" +
         "\n".join(f"- {r}" for r in sc.get("reasons", [])) +
-        f"\n\n## 2. Análise Estática Profunda (REA Engine)\n"
+        f"\n- **URLs Identificadas para Validação Manual ({len(urls_list)})**: {urls_inline}\n"
+        f"- **Endereços IP Identificados para Validação Manual ({len(ips_list)})**: {ips_inline}\n"
+        f"- **Chaves de Registro Identificadas ({len(regs_list)})**: {regs_inline}\n\n"
+        f"## 2. Análise Estática Profunda (REA Engine)\n"
         f"- **Entropia de Shannon**: `{entropy_val} bits/byte` — {entropy_desc}\n"
         f"- **Suspeita de Packer / Criptografia**: `{'SIM (Alta Entropia)' if hs['packed_or_encrypted_suspect'] else 'NÃO (Estrutura aberta/padrão)'}`\n"
         f"- **Workflow REA Acionado**: `{fm['rea_workflow']}`\n"
@@ -918,8 +942,10 @@ def build_comprehensive_fallback_markdown(full_telemetry):
         f"## 3. Comportamento na Detonação Dinâmica e Sessão Visual\n"
         f"- **Vídeo da Detonação Gravado**: `{dyn.get('video_filename') or 'N/A'}` (`{format_bytes(dyn.get('video_size_bytes', 0))}`)\n"
         f"- **Captura de Tela (Keyframe)**: `{dyn.get('screenshot_filename') or 'N/A'}`\n"
-        f"- **Conexões de Rede Externas (C2)**: `{len(iocs.get('urls', []))} URLs` e `{len(iocs.get('ips', []))} IPs externos` identificados.\n"
-        f"- **Chaves de Registro Monitoradas**: `{len(iocs.get('registry_keys', []))} chaves`.\n\n"
+        f"- **Conexões de Rede Externas (C2) — `{len(urls_list)} URLs` e `{len(ips_list)} IPs externos`**:\n"
+        f"  - **URLs**: {urls_inline}\n"
+        f"  - **IPs**: {ips_inline}\n"
+        f"- **Chaves de Registro Monitoradas (`{len(regs_list)} chaves`)**: {regs_inline}\n\n"
         f"## 4. Mapeamento Tático MITRE ATT&CK\n\n"
         f"| ID Técnica | Tática (Tactic) | Nome da Técnica |\n"
         f"|---|---|---|\n"
@@ -971,7 +997,7 @@ def generate_ai_report(full_telemetry, ai_config):
         "Você é um Analista Sênior de Malware, DFIR e Engenharia Reversa operando a plataforma corporativa ANY.RUN + REA (Reverse Engineer Anything). "
         "Elabore um Relatório Técnico Forense COMPLETO, detalhado, sem abreviações e sem cortar frases, em Português (Markdown), estruturado nas seguintes seções:\n"
         "## 1. Resumo Executivo e Veredito Forense\n"
-        "(Explique claramente o que o arquivo faz de ponta a ponta, o porquê do Threat Score e se o comportamento corresponde a automação administrativa legítima, ferramenta dual-use ou ameaça real.)\n"
+        "(Explique claramente o que o arquivo faz de ponta a ponta, o porquê do Threat Score, a Justificativa Técnica do Veredito listando EXPLICITAMENTE todas as URLs, endereços IP e chaves de registro encontrados para validação manual posterior, e se o comportamento corresponde a automação legítima ou ameaça real.)\n"
         "## 2. Análise Estática Profunda e Inspeção de Código/Estrutura (REA Engine)\n"
         "(Analise formato, cabeçalhos, entropia de Shannon, todas as linhas/comandos relevantes do `source_preview` ou `notable_strings`, variáveis/caminhos de sistema e primitivas de API.)\n"
         "## 3. Comportamento na Detonação Dinâmica\n"
