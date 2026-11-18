@@ -58,6 +58,33 @@ Este repositório inclui dois pacotes completos de detonação reais (100% sanit
 
 ---
 
+## 💻 Requisitos de Sistema (Configuração Mínima & Recomendada)
+
+A arquitetura do **ANY.RUN + REA Universal Detonation Sandbox** permite operar em três perfis de hardware, dependendo de como você executa o motor de Inteligência Artificial Forense (via **API Externa** ou **LLM Local via Ollama**) e se utiliza o container completo **`kali-sandbox`** para detonação dinâmica Windows/Wine/Linux:
+
+| Recurso | 🟢 Mínimo (Sandbox + IA via API Externa) | 🟡 Mínimo c/ Container `kali-sandbox` + IA Local (CPU/GPU) | 🔵 Recomendado (Stack Completa + GPU Dedicada) |
+| :--- | :--- | :--- | :--- |
+| **CPU** | **2 vCPUs** (`x86_64` / `amd64`) | **4 vCPUs** (`x86_64` c/ AVX2) | **6 a 8+ vCPUs** (`x86_64`) |
+| **Memória RAM** | **4 GB RAM** (+ 2 GB Swap) | **8 GB RAM** (+ 4 GB Swap) | **16 GB+ RAM** |
+| **Armazenamento (SSD)** | **15 GB livres** (SO + REA Core + Xvfb/FFmpeg) | **40 GB livres** (inclui container `kali-sandbox` + modelo LLM 4B/7B) | **80 GB+ SSD NVMe** (múltiplos modelos LLM, Ghidra/JADX e histórico de vídeos MP4) |
+| **GPU (Opcional)** | Não necessária (usa API OpenAI/Groq/DeepSeek/OpenRouter) | Opcional (4 GB VRAM p/ modelos 4B–8B quantizados ou execução em CPU) | **NVIDIA 4 GB a 8 GB+ VRAM** (CUDA) |
+| **Sistema Operacional** | Ubuntu 22.04 / 24.04 / 26.04 LTS ou Debian 12+ | Ubuntu 22.04 / 24.04 / 26.04 LTS ou Debian 12+ | Ubuntu 24.04 / 26.04 LTS |
+
+### 📦 Consumo por Componente da Arquitetura
+- **Motor Web + Gravador Visual (`anyrun-rea.service` + `Xvfb` + `Fluxbox` + `FFmpeg H.264`)**: ~250 MB a 600 MB de RAM durante gravação em vídeo MP4 a 15 fps.
+- **REA Core (`v6.7.0` + Node.js Runtime + Rizin/Apktool/JADX/Binwalk)**: ~300 MB a 1 GB de RAM durante descompilação estática e extração de pacotes.
+- **Container Isolado de Detonação (`kali-sandbox` via Docker)**: Reserva mínima de **1 GB RAM** (`mem_reservation: 1024m`) e teto de **4 GB RAM** (`mem_limit: 4096m`) com **2.0 vCPUs**.
+- **Motor de IA Forense**:
+  - **Modo API (`openai_compatible`)**: Consumo zero de VRAM/CPU local (~50 MB RAM).
+  - **Modo Local (`ollama`)**: Requer ~3.5 GB de RAM/VRAM para modelos de 4B (`qwen3:4b-instruct`) ou ~5 GB a 6 GB de RAM/VRAM para modelos de 7B–9B (`qwen3-hermes:latest`, `deepseek-v4`).
+
+### 🛠️ Dependências de Software (Instaladas Automaticamente pelo `install.sh`)
+- **Runtime & Servidor**: `Python 3.10+`, `Gunicorn`, `Flask`, `ReportLab`, `Node.js 22+` + `REA CLI v6.7.0`
+- **Captura Visual & Vídeo**: `Xvfb`, `Fluxbox`, `Xterm`, `FFmpeg (libx264)`, `ImageMagick`, `Poppler-utils`
+- **Análise & Isolamento**: `strace`, `binutils`, `file`, `Docker Engine` + `Docker Compose` (para o `kali-sandbox`)
+
+---
+
 ## 🚀 Instalação Rápida
 
 ```bash
