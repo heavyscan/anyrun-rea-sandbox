@@ -11,9 +11,11 @@ import math
 import json
 import time
 import uuid
+import shlex
 import shutil
 import socket
 import struct
+import getpass
 import hashlib
 import subprocess
 import urllib.request
@@ -21,6 +23,12 @@ import urllib.error
 from collections import Counter
 
 REA_BIN = os.environ.get("REA_BIN") or shutil.which("rea") or "/usr/local/bin/rea"
+
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_SUBMISSIONS_DIR = os.path.join(_REPO_ROOT, "data", "submissions")
+_HOME_DIR = os.path.expanduser("~")
+_CURRENT_USER = getpass.getuser()
+_CURRENT_HOST = socket.gethostname()
 
 ANSI_ESCAPE_RE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 
@@ -31,20 +39,35 @@ def strip_ansi(text):
     return ANSI_ESCAPE_RE.sub("", str(text))
 
 
+def _sed_sanitize_expr():
+    parts = []
+    if _HOME_DIR and _HOME_DIR != "/":
+        esc_home = _HOME_DIR.replace("#", r"\#")
+        parts.append(f's#{esc_home}[^ "]*#/sandbox/target#g')
+    if _CURRENT_USER and _CURRENT_USER not in ("root", "sandbox-operator"):
+        parts.append(f"s/{_CURRENT_USER}/sandbox-operator/g")
+    if _CURRENT_HOST and _CURRENT_HOST not in ("localhost", "anyrun-sandbox-node01"):
+        parts.append(f"s/{_CURRENT_HOST}/anyrun-sandbox-node01/g")
+    return "; ".join(parts) or "s/$^//"
+
+
 def sanitize_public_text(text):
     """
-    Removes or anonymizes any local server identifiers (username, hostname, local paths, LAN IPs)
-    so generated logs, videos, JSON bundles, Markdown, and PDF reports are 100% safe for public sharing.
+    Removes or anonymizes local host identifiers (username, hostname, local paths, private LAN IPs)
+    so generated logs, videos, JSON bundles, Markdown, and PDF reports are safe for public sharing.
     """
     if not text:
         return text
     s = str(text)
-    s = re.sub(r"/home/eduheavy/anyrun-rea/data/submissions/", "/sandbox/submissions/", s)
-    s = re.sub(r"/home/eduheavy/anyrun-rea", "/opt/anyrun-rea", s)
-    s = re.sub(r"/home/eduheavy", "/home/sandbox-analyst", s)
-    s = re.sub(r"\beduheavy\b", "sandbox-operator", s, flags=re.I)
-    s = re.sub(r"\bheavyscan\b", "anyrun-sandbox-node01", s, flags=re.I)
-    s = re.sub(r"\b192\.168\.1\.[0-9]{1,3}\b", "10.240.0.10", s)
+    s = s.replace(_SUBMISSIONS_DIR + os.sep, "/sandbox/submissions/")
+    s = s.replace(_REPO_ROOT, "/opt/anyrun-rea")
+    if _HOME_DIR and _HOME_DIR != "/":
+        s = s.replace(_HOME_DIR, "/home/sandbox-analyst")
+    if _CURRENT_USER and _CURRENT_USER not in ("root", "sandbox-operator"):
+        s = re.sub(rf"\b{re.escape(_CURRENT_USER)}\b", "sandbox-operator", s, flags=re.I)
+    if _CURRENT_HOST and _CURRENT_HOST not in ("localhost", "anyrun-sandbox-node01"):
+        s = re.sub(rf"\b{re.escape(_CURRENT_HOST)}\b", "anyrun-sandbox-node01", s, flags=re.I)
+    s = re.sub(r"\b192\.168\.\d{1,3}\.\d{1,3}\b", "10.240.0.10", s)
     return s
 
 
@@ -526,6 +549,7 @@ echo ""
 echo "[PHASE 2/4] ENVIRONMENT PREPARATION & INSTALLER / RUNTIME HOOKS..."
 """)
 
+        sed_expr = shlex.quote(_sed_sanitize_expr())
         if "pe32" in m_low or ext in (".exe", ".dll", ".msi", ".bat", ".cmd"):
             f.write(f"""
 echo " -> Routing Windows artifact to Kali Sandbox Wine / Rizin subsystem..."
@@ -539,8 +563,8 @@ docker exec kali-sandbox rm -f /tmp/"{fname}" >/dev/null 2>&1 || true
             f.write(f"""
 echo " -> Instrumenting Linux ELF binary with strace behavioral tracing..."
 chmod +x "{file_path}" 2>/dev/null || true
-timeout 4s strace -f -e trace=execve,openat,connect,socket,unlink,write -o "{strace_log_path}" "{file_path}" 2>&1 | sed -E 's#/home/eduheavy[^ "]*#/sandbox/target#g; s/eduheavy/sandbox-operator/g; s/heavyscan/anyrun-sandbox-node01/g' | head -n 20 || true
-sed -i -E 's#/home/eduheavy[^ "]*#/sandbox/target#g; s/eduheavy/sandbox-operator/g; s/heavyscan/anyrun-sandbox-node01/g' "{strace_log_path}" 2>/dev/null || true
+timeout 4s strace -f -e trace=execve,openat,connect,socket,unlink,write -o "{strace_log_path}" "{file_path}" 2>&1 | sed -E {sed_expr} | head -n 20 || true
+sed -i -E {sed_expr} "{strace_log_path}" 2>/dev/null || true
 echo " -> Captured Syscalls Summary:"
 head -n 18 "{strace_log_path}" 2>/dev/null || true
 """)
@@ -548,8 +572,8 @@ head -n 18 "{strace_log_path}" 2>/dev/null || true
             interp = "python3" if ext == ".py" else ("node" if ext == ".js" else "bash")
             f.write(f"""
 echo " -> Detonating script under strace + {interp} sandbox..."
-timeout 4s strace -f -e trace=execve,openat,connect,socket -o "{strace_log_path}" {interp} "{file_path}" 2>&1 | sed -E 's#/home/eduheavy[^ "]*#/sandbox/target#g; s/eduheavy/sandbox-operator/g; s/heavyscan/anyrun-sandbox-node01/g' | head -n 20 || true
-sed -i -E 's#/home/eduheavy[^ "]*#/sandbox/target#g; s/eduheavy/sandbox-operator/g; s/heavyscan/anyrun-sandbox-node01/g' "{strace_log_path}" 2>/dev/null || true
+timeout 4s strace -f -e trace=execve,openat,connect,socket -o "{strace_log_path}" {interp} "{file_path}" 2>&1 | sed -E {sed_expr} | head -n 20 || true
+sed -i -E {sed_expr} "{strace_log_path}" 2>/dev/null || true
 echo " -> Captured Syscalls Summary:"
 head -n 18 "{strace_log_path}" 2>/dev/null || true
 """)
@@ -567,7 +591,7 @@ pdfinfo "{file_path}" 2>/dev/null | head -n 15 || true
 echo " -> Scanning PDF Object Streams for Active Content / Exploits:"
 head -c 25000000 "{file_path}" | strings -n 5 | grep -iE "/JS|/JavaScript|/OpenAction|/AA|/Launch|/EmbeddedFiles|/URI|/RichMedia|/ObjStm|/AcroForm" | head -n 16 || echo " -> No malicious PDF auto-action tags detected."
 strace -f -e trace=openat,read -o "{strace_log_path}" pdfinfo "{file_path}" >/dev/null 2>&1 || true
-sed -i -E 's#/home/eduheavy[^ "]*#/sandbox/target#g; s/eduheavy/sandbox-operator/g; s/heavyscan/anyrun-sandbox-node01/g' "{strace_log_path}" 2>/dev/null || true
+sed -i -E {sed_expr} "{strace_log_path}" 2>/dev/null || true
 echo " -> Rendering PDF Pages in Sandbox Display (pdftoppm -> X11 Preview)..."
 pdftoppm -png -f 1 -l 1 -scale-to 520 "{file_path}" "{work_dir}/pdf_page" 2>/dev/null || true
 if [ -f "{work_dir}/pdf_page-1.png" ] || [ -f "{work_dir}/pdf_page-01.png" ] || [ -f "{work_dir}/pdf_page-001.png" ]; then
@@ -580,8 +604,8 @@ head -c 5000000 "{file_path}" | strings -n 8 | grep -E "^[A-Za-z0-9 /,.:;()-]+$"
         else:
             f.write(f"""
 echo " -> Inspecting artifact structure, headers, and embedded streams..."
-strace -f -e trace=openat,read -o "{strace_log_path}" file "{file_path}" 2>&1 | sed -E 's#/home/eduheavy[^ "]*#/sandbox/target#g; s/eduheavy/sandbox-operator/g; s/heavyscan/anyrun-sandbox-node01/g'
-sed -i -E 's#/home/eduheavy[^ "]*#/sandbox/target#g; s/eduheavy/sandbox-operator/g; s/heavyscan/anyrun-sandbox-node01/g' "{strace_log_path}" 2>/dev/null || true
+strace -f -e trace=openat,read -o "{strace_log_path}" file "{file_path}" 2>&1 | sed -E {sed_expr}
+sed -i -E {sed_expr} "{strace_log_path}" 2>/dev/null || true
 strings -n 6 "{file_path}" | head -n 20
 """)
 
